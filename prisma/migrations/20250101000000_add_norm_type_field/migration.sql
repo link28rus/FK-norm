@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "norms" ADD COLUMN "normType" TEXT NOT NULL DEFAULT 'INDIVIDUAL';
+
+
+
+

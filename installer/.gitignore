@@ -1,0 +1,13 @@
+# Временно генерируемые файлы
+NodePath.wxi
+heat-files.wxs
+bin/
+obj/
+
+# NSSM (будет скачан автоматически)
+nssm/
+nssm.zip
+
+
+
+

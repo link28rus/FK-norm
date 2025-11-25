@@ -1,0 +1,201 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  role         String // ADMIN или TRAINER
+  isBlocked    Boolean   @default(false)
+  activeUntil  DateTime? // До какой даты пользователь активен (включительно)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  trainerProfile TrainerProfile?
+
+  @@map("users")
+}
+
+model TrainerProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  fullName  String
+  phone     String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groups         Group[]
+  normTemplates  NormTemplate[] @relation("NormTemplateOwner")
+
+  @@map("trainer_profiles")
+}
+
+model Group {
+  id          String   @id @default(cuid())
+  trainerId   String
+  name        String
+  description String?
+  schoolYear  String   @default("2024/2025") // например: "2024/2025"
+  class       Int? // Класс группы (2, 3, 4) - для привязки к шаблонам нормативов
+  createdAt   DateTime @default(now())
+
+  trainer    TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  athletes   Athlete[]
+  lessons    Lesson[]
+  groupNorms GroupNorm[]
+
+  @@unique([trainerId, name, schoolYear])
+  @@map("groups")
+}
+
+model Athlete {
+  id         String    @id @default(cuid())
+  groupId    String
+  fullName   String
+  birthDate  DateTime?
+  gender     String?
+  notes      String?
+  schoolYear String    @default("2024/2025") // Должен совпадать с годом группы
+  createdAt  DateTime  @default(now())
+
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  norms       Norm[]
+  lessonMarks LessonMark[]
+
+  @@map("athletes")
+}
+
+model Norm {
+  id          String   @id @default(cuid())
+  athleteId   String
+  type        String
+  normType    String   @default("INDIVIDUAL") // "GROUP" или "INDIVIDUAL"
+  value       Float?
+  unit        String?
+  status      String
+  date        DateTime @default(now())
+  comment     String?
+  templateId  String? // Связь с шаблоном норматива
+  groupNormId String? // Связь с групповым нормативом
+
+  athlete   Athlete       @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  template  NormTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  groupNorm GroupNorm?    @relation(fields: [groupNormId], references: [id], onDelete: SetNull)
+
+  @@map("norms")
+}
+
+// Шаблон норматива
+model NormTemplate {
+  id             String   @id @default(cuid())
+  name           String // "Бег 30 м с высокого старта"
+  description    String?
+  unit           String // "сек" | "м" | "раз" | "без учета времени"
+  classFrom      Int // Начальный класс (например, 2)
+  classTo        Int // Конечный класс (например, 4)
+  direction      String // "LOWER_IS_BETTER" | "HIGHER_IS_BETTER"
+  ownerTrainerId String? // Если не null — личный шаблон тренера
+  isPublic       Boolean  @default(false) // true — общий шаблон, false — личный
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  ownerTrainer TrainerProfile? @relation("NormTemplateOwner", fields: [ownerTrainerId], references: [id], onDelete: Cascade)
+  boundaries   NormTemplateBoundary[]
+  groupNorms   GroupNorm[]
+  norms        Norm[]
+
+  @@map("norm_templates")
+}
+
+// Границы оценок для шаблона
+model NormTemplateBoundary {
+  id         String @id @default(cuid())
+  templateId String
+  grade      Int // 5, 4, 3, 2
+  gender     String // "MALE" | "FEMALE"
+  class      Int // Класс (2, 3, 4)
+  fromValue  Float // Нижняя граница
+  toValue    Float // Верхняя граница
+
+  template NormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, grade, gender, class])
+  @@map("norm_template_boundaries")
+}
+
+// Групповой норматив (на основе шаблона)
+model GroupNorm {
+  id                  String   @id @default(cuid())
+  groupId             String
+  templateId          String
+  testDate            DateTime // Дата зачёта
+  nameOverride        String? // Переопределение названия
+  unitOverride        String? // Переопределение единицы измерения
+  useCustomBoundaries Boolean  @default(false) // Использовать кастомные границы
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  group      Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  template   NormTemplate        @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  boundaries GroupNormBoundary[]
+  norms      Norm[]
+
+  @@map("group_norms")
+}
+
+// Кастомные границы для группового норматива
+model GroupNormBoundary {
+  id          String @id @default(cuid())
+  groupNormId String
+  grade       Int // 5, 4, 3, 2
+  gender      String // "MALE" | "FEMALE"
+  class       Int // Класс (2, 3, 4)
+  fromValue   Float // Нижняя граница
+  toValue     Float // Верхняя граница
+
+  groupNorm GroupNorm @relation(fields: [groupNormId], references: [id], onDelete: Cascade)
+
+  @@unique([groupNormId, grade, gender, class])
+  @@map("group_norm_boundaries")
+}
+
+model Lesson {
+  id        String   @id @default(cuid())
+  groupId   String
+  date      DateTime
+  topic     String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  lessonMarks LessonMark[]
+
+  @@map("lessons")
+}
+
+model LessonMark {
+  id        String   @id @default(cuid())
+  lessonId  String
+  athleteId String
+  code      String? // "Н/Ф", "Н", "Б", "2", "3", "4", "5" или null
+  code2     String? // Вторая оценка: "Н/Ф", "Н", "Б", "2", "3", "4", "5" или null
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lesson  Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, athleteId])
+  @@map("lesson_marks")
+}

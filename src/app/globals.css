@@ -1,0 +1,345 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  
+  /* Typography System - Font Families */
+  --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  
+  /* Typography System - Font Sizes */
+  --font-size-title: 20px;
+  --font-size-subtitle: 16px;
+  --font-size-body: 14px;
+  --font-size-small: 12px;
+  --font-size-xs: 10px;
+  
+  /* Typography System - Font Weights */
+  --font-weight-bold: 700;
+  --font-weight-semibold: 600;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  
+  /* Typography System - Text Colors */
+  --color-text-heading: #000000;   /* заголовки - черный цвет, максимальный контраст */
+  --color-text-primary: #1A1A1A;   /* основной текст */
+  --color-text-secondary: #4A4A4A; /* вторичный текст */
+  --color-text-muted: #6F6F6F;     /* приглушенный текст */
+  --color-text-disabled: #9CA3AF;  /* неактивный текст */
+}
+
+/* Темная тема отключена - всегда используем светлую тему с черным текстом */
+/* @media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --color-text-heading: #FFFFFF;
+    --color-text-primary: #F9FAFB;
+    --color-text-secondary: #D1D5DB;
+    --color-text-muted: #9CA3AF;
+  }
+} */
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-normal);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography - Headings */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-text-heading);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.3;
+  margin: 0;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: var(--font-weight-bold);
+}
+
+h2 {
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-semibold);
+}
+
+h3 {
+  font-size: var(--font-size-subtitle);
+  font-weight: var(--font-weight-semibold);
+}
+
+h4 {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+}
+
+h5, h6 {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Typography - Body Text */
+p {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Typography - Text Utilities */
+.text-primary {
+  color: var(--color-text-primary) !important;
+}
+
+.text-secondary {
+  color: var(--color-text-secondary) !important;
+}
+
+.text-muted {
+  color: var(--color-text-muted) !important;
+}
+
+/* Typography - Size Utilities */
+.text-title {
+  font-size: var(--font-size-title) !important;
+  font-weight: var(--font-weight-semibold) !important;
+  color: var(--color-text-heading) !important;
+}
+
+.text-subtitle {
+  font-size: var(--font-size-subtitle) !important;
+  font-weight: var(--font-weight-semibold) !important;
+  color: var(--color-text-heading) !important;
+}
+
+.text-heading {
+  color: var(--color-text-heading) !important;
+}
+
+.text-body {
+  font-size: var(--font-size-body) !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.text-small {
+  font-size: var(--font-size-small) !important;
+}
+
+.text-xs {
+  font-size: var(--font-size-xs) !important;
+}
+
+/* Улучшение контрастности для форм */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+textarea,
+select {
+  color: #111827 !important; /* text-gray-900 */
+  background-color: #ffffff !important;
+}
+
+input::placeholder {
+  color: #6b7280 !important; /* text-gray-500 */
+  opacity: 1;
+}
+
+label {
+  color: #111827 !important; /* text-gray-900 */
+  font-weight: 600;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Скрыть элементы только для печати по умолчанию */
+.print-only {
+  display: none;
+}
+
+/* Стили для печати журнала в альбомной ориентации */
+@media print {
+  @page {
+    size: A4 landscape; /* альбомная ориентация */
+    margin: 5mm; /* Минимальные поля */
+  }
+
+  /* Масштабирование для влезания таблицы */
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    zoom: 0.85; /* 85% масштаб для влезания всех колонок */
+  }
+
+  /* Скрыть элементы управления, которые не нужны в печати */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Показать элементы только для печати */
+  .print-only {
+    display: block !important;
+  }
+
+  span.print-only,
+  div.print-only {
+    display: inline !important;
+  }
+
+  /* Убрать все отступы у контейнеров */
+  .max-w-7xl,
+  .mx-auto,
+  .px-4,
+  .px-6,
+  .px-8,
+  .py-8,
+  main,
+  div[class*="container"] {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Таблицу сделать на всю ширину, убрать горизонтальный скролл */
+  .journal-table-wrapper {
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .journal-table-wrapper > div {
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Убрать тени и скругления для печати */
+  .bg-white {
+    background: white !important;
+  }
+
+  .shadow,
+  .shadow-sm,
+  .shadow-md,
+  .rounded-lg,
+  .rounded-md {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Оптимизация таблицы для печати */
+  table {
+    width: 100% !important;
+    table-layout: fixed !important; /* Фиксированная ширина колонок */
+    border-collapse: collapse !important;
+    font-size: 10px !important; /* Уменьшенный шрифт */
+    margin: 0 !important;
+  }
+
+  /* Узкие колонки для дней */
+  th,
+  td {
+    border: 1px solid #e5e7eb !important;
+    padding: 2px 4px !important; /* Минимальные отступы */
+    font-size: 10px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    width: 28px !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Колонка с ФИО - шире */
+  th:first-child,
+  td:first-child {
+    min-width: 120px !important;
+    max-width: 120px !important;
+    width: 120px !important;
+    text-align: left !important;
+    padding: 2px 6px !important;
+    font-size: 10px !important;
+  }
+
+  th {
+    background-color: #f9fafb !important;
+    font-weight: 600 !important;
+  }
+
+  /* Заголовки для печати - компактные */
+  .print-only {
+    margin: 0 0 4px 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-only h1 {
+    font-size: 16px !important;
+    margin: 0 0 2px 0 !important;
+    color: #111827 !important;
+    padding: 0 !important;
+  }
+
+  .print-only h2,
+  .print-only p {
+    font-size: 12px !important;
+    margin: 0 0 4px 0 !important;
+    color: #111827 !important;
+    padding: 0 !important;
+  }
+
+  /* Легенда для печати - очень компактная версия */
+  .print-legend {
+    margin-top: 6px !important;
+    padding: 4px 6px !important;
+    font-size: 9px !important;
+    page-break-inside: avoid !important; /* Не переносить на следующую страницу */
+  }
+
+  .print-legend h4 {
+    font-size: 10px !important;
+    margin: 0 0 2px 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-legend ul {
+    margin: 0 !important;
+    padding-left: 12px !important;
+  }
+
+  .print-legend li {
+    margin: 1px 0 !important;
+    padding: 0 !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Убрать все лишние отступы у строк таблицы */
+  tr {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Убрать sticky позиционирование при печати */
+  .sticky {
+    position: static !important;
+  }
+
+  /* Убрать z-index при печати */
+  [class*="z-"] {
+    z-index: auto !important;
+  }
+}
+

@@ -1,0 +1,17 @@
+<Project Sdk="WixToolset.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <OutputType>Package</OutputType>
+    <WixToolsetVersion>4.0</WixToolsetVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <WixSource Include="NormTracker.wxs" />
+    <WixSource Include="heat-files.wxs" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <DefineConstants>ProductionPath=$(ProductionPath);NSSMPath=$(NSSMPath);NodePath=$(NodePath)</DefineConstants>
+  </PropertyGroup>
+</Project>
+
