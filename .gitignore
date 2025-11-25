@@ -39,8 +39,14 @@ next-env.d.ts
 # prisma
 /prisma/dev.db
 /prisma/dev.db-journal
+/prisma/dev.db.backup
+/prisma/prisma/dev.db
 /prisma/migrations/*.sqlite
 /prisma/migrations/*.sqlite-journal
+
+# excel files
+*.xlsx
+4A.xlsx
 
 # installer
 installer/nssm/
