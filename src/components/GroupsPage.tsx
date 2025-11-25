@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from './Header'
 import { extractClassFromGroupName } from '@/lib/groupClassExtractor'
+import { Button, Input, Select, Textarea, Alert, Card } from '@/components/ui'
 
 interface Group {
   id: string
@@ -195,7 +196,7 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
                             ))}
                           </select>
             </div>
-            <button
+            <Button
               onClick={() => {
                 setShowAddForm(!showAddForm)
                 if (!showAddForm) {
@@ -217,102 +218,79 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
                   })
                 }
               }}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+              variant={showAddForm ? 'secondary' : 'primary'}
             >
               {showAddForm ? 'Отмена' : 'Добавить группу'}
-            </button>
+            </Button>
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-4">
-            <div className="text-sm text-red-800">{error}</div>
-          </div>
+          <Alert variant="danger" className="mb-4">
+            {error}
+          </Alert>
         )}
 
         {showAddForm && (
-          <div className="mb-6 bg-white rounded-lg shadow p-6">
+          <Card className="mb-6">
             <h3 className="text-lg font-semibold text-heading mb-4">
               Добавить группу
             </h3>
             <form onSubmit={handleAddGroup} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-heading mb-1">
-                  Учебный год *
-                </label>
-                  <select
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white text-heading px-3 py-2 border"
-                    value={formData.schoolYear}
-                    onChange={(e) =>
-                      setFormData({ ...formData, schoolYear: e.target.value })
-                    }
-                  >
-                    {schoolYearOptions.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-heading mb-1">
-                  Название группы *
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white text-heading px-3 py-2 border"
-                  value={formData.name}
-                  onChange={(e) => {
-                    const newName = e.target.value
-                    setFormData({ ...formData, name: newName })
-                    setDetectedClass(extractClassFromGroupName(newName))
-                  }}
-                  placeholder="Например: 2 А, 3 Б, 5 Г"
-                />
-                {/* Информация об автоматическом определении класса */}
-                {detectedClass !== null ? (
-                  <div className="mt-2 p-3 rounded-md bg-blue-50 border border-blue-200">
-                    <p className="text-sm text-blue-800">
-                      <strong>Класс определён автоматически.</strong> Система определяет школьный класс на основании названия группы. Проверьте, корректно ли указано название группы — от этого зависит автоматический расчёт оценок по нормативам.
-                    </p>
-                    <p className="text-sm text-blue-700 mt-1">
-                      Определённый класс: <strong>{detectedClass}</strong>
-                    </p>
-                  </div>
-                ) : formData.name.trim() ? (
-                  <div className="mt-2 p-3 rounded-md bg-yellow-50 border border-yellow-200">
-                    <p className="text-sm text-yellow-800">
-                      <strong>Не удалось определить класс группы.</strong> В названии группы отсутствует цифра. Укажите цифру школьного класса в названии, например: "2 А", "3 Б", "5 Г".
-                    </p>
-                    <p className="text-sm text-yellow-700 mt-1">
-                      Без корректного класса автоматический расчёт оценок по нормативам работать не сможет.
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-heading mb-1">
-                  Описание
-                </label>
-                <textarea
-                  rows={3}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white text-heading px-3 py-2 border"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                />
-              </div>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-              >
+              <Select
+                label="Учебный год"
+                required
+                options={schoolYearOptions.map((year) => ({ value: year, label: year }))}
+                value={formData.schoolYear}
+                onChange={(e) =>
+                  setFormData({ ...formData, schoolYear: e.target.value })
+                }
+              />
+              <Input
+                label="Название группы"
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => {
+                  const newName = e.target.value
+                  setFormData({ ...formData, name: newName })
+                  setDetectedClass(extractClassFromGroupName(newName))
+                }}
+                placeholder="Например: 2 А, 3 Б, 5 Г"
+              />
+              {/* Информация об автоматическом определении класса */}
+              {detectedClass !== null ? (
+                <div className="mt-2 p-3 rounded-md bg-blue-50 border border-blue-200">
+                  <p className="text-sm text-blue-800">
+                    <strong>Класс определён автоматически.</strong> Система определяет школьный класс на основании названия группы. Проверьте, корректно ли указано название группы — от этого зависит автоматический расчёт оценок по normативам.
+                  </p>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Определённый класс: <strong>{detectedClass}</strong>
+                  </p>
+                </div>
+              ) : formData.name.trim() ? (
+                <div className="mt-2 p-3 rounded-md bg-yellow-50 border border-yellow-200">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Не удалось определить класс группы.</strong> В названии группы отсутствует цифра. Укажите цифру школьного класса в названии, например: "2 А", "3 Б", "5 Г".
+                  </p>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    Без корректного класса автоматический расчёт оценок по normативам работать не сможет.
+                  </p>
+                </div>
+              ) : null}
+              <Textarea
+                label="Описание"
+                rows={3}
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+              />
+              <Button type="submit" variant="primary">
                 Создать
-              </button>
+              </Button>
             </form>
-          </div>
+          </Card>
         )}
 
         {(() => {
@@ -382,18 +360,19 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
                             <span>Уроков: {group._count.lessons}</span>
                           </div>
                           <div className="flex space-x-2">
-                            <button
+                            <Button
                               onClick={() => router.push(`/trainer/groups/${group.id}`)}
-                              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                              variant="primary"
+                              className="flex-1"
                             >
                               Открыть
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                               onClick={() => handleDeleteGroup(group.id)}
-                              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                              variant="danger"
                             >
                               Удалить
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       ))}
@@ -437,18 +416,19 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
                       <span>Уроков: {group._count.lessons}</span>
                     </div>
                     <div className="flex space-x-2">
-                      <button
+                      <Button
                         onClick={() => router.push(`/trainer/groups/${group.id}`)}
-                        className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                        variant="primary"
+                        className="flex-1"
                       >
                         Открыть
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={() => handleDeleteGroup(group.id)}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                        variant="danger"
                       >
                         Удалить
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))
