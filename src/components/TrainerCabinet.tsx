@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Header from './Header'
+import { InfoCard, Alert } from '@/components/ui'
 
 interface Profile {
   id: string
@@ -331,15 +331,12 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header title="Кабинет тренера" userFullName={profile?.fullName} userRole={userRole} />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-4 no-print">
-          <h1 className="text-3xl font-bold text-heading">Кабинет тренера</h1>
-        </div>
-        {/* Табы */}
-        <div className="border-b border-gray-200 mb-6 no-print">
+    <div>
+      <div className="mb-4 no-print">
+        <h1 className="h1">Кабинет тренера</h1>
+      </div>
+      {/* Табы */}
+      <div className="border-b border-gray-200 mb-6 no-print">
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab('profile')}
@@ -391,9 +388,7 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-4">
-            <div className="text-sm text-red-800">{error}</div>
-          </div>
+          <Alert variant="error" message={error} className="mb-4" />
         )}
 
         {/* Профиль */}
@@ -401,7 +396,7 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
           <div className="space-y-6">
             <div className="bg-white shadow rounded-lg p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-title font-semibold text-heading">Профиль тренера</h2>
+                <h2 className="h2">Профиль тренера</h2>
                 {!editingProfile && (
                   <button
                     onClick={() => setEditingProfile(true)}
@@ -519,7 +514,7 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
             {/* Смена пароля */}
             <div className="bg-white shadow rounded-lg p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-title font-semibold text-heading">Смена пароля</h2>
+                <h2 className="h2">Смена пароля</h2>
                 {!changingPassword && (
                   <button
                     onClick={() => setChangingPassword(true)}
@@ -614,7 +609,7 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
         {/* Список групп (главная страница раздела) */}
         {activeTab === 'athletes' && (
           <div>
-            <h2 className="text-xl font-semibold text-heading mb-6">Учащиеся</h2>
+            <h2 className="h2 mb-6">Учащиеся</h2>
 
             {(() => {
               // Группируем учащихся по группам
@@ -645,7 +640,7 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
                       className="bg-white shadow rounded-lg p-6 border border-gray-200 hover:shadow-md transition-shadow"
                     >
                       <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold text-heading">
+                        <h3 className="h3">
                           {groupName}
                         </h3>
                         <span className="text-sm text-gray-500">
@@ -683,7 +678,7 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
                 >
                   ← Назад к группам
                 </button>
-                <h2 className="text-title font-semibold text-heading">
+                <h2 className="h2">
                   Группа: {selectedGroup}
                 </h2>
               </div>
@@ -703,7 +698,7 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
 
             {showAddAthlete && (
               <div className="mb-6 bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-heading mb-4">
+                <h3 className="h3 mb-4">
                   Добавить учащегося в группу {selectedGroup}
                 </h3>
                 <form onSubmit={handleAddAthlete} className="space-y-4">
@@ -858,64 +853,62 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
         {/* Карточка учащегося */}
         {activeTab === 'athlete-detail' && selectedAthlete && (
           <div className="space-y-6">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-heading mb-4">
-                {selectedAthlete.fullName}
-              </h2>
-              <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+            <InfoCard title={selectedAthlete.fullName}>
+              <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">
+                  <dt className="text-sm font-medium text-secondary mb-0.5">
                     Дата рождения
                   </dt>
-                  <dd className="mt-1 text-sm text-gray-900">
+                  <dd className="text-sm text-heading">
                     {selectedAthlete.birthDate
                       ? new Date(selectedAthlete.birthDate).toLocaleDateString('ru-RU')
-                      : '-'}
+                      : '—'}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Возраст</dt>
-                  <dd className="mt-1 text-sm text-gray-900">
+                  <dt className="text-sm font-medium text-secondary mb-0.5">Возраст</dt>
+                  <dd className="text-sm text-heading">
                     {calculateAge(selectedAthlete.birthDate)
                       ? `${calculateAge(selectedAthlete.birthDate)} лет`
-                      : '-'}
+                      : '—'}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Пол</dt>
-                  <dd className="mt-1 text-sm text-gray-900">
-                    {selectedAthlete.gender || '-'}
+                  <dt className="text-sm font-medium text-secondary mb-0.5">Пол</dt>
+                  <dd className="text-sm text-heading">
+                    {selectedAthlete.gender || '—'}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Группа/класс</dt>
-                  <dd className="mt-1 text-sm text-gray-900">
-                    {selectedAthlete.groupName || '-'}
+                  <dt className="text-sm font-medium text-secondary mb-0.5">Группа/класс</dt>
+                  <dd className="text-sm text-heading">
+                    {selectedAthlete.groupName || '—'}
                   </dd>
                 </div>
                 {selectedAthlete.notes && (
                   <div className="sm:col-span-2">
-                    <dt className="text-sm font-medium text-gray-500">
+                    <dt className="text-sm font-medium text-secondary mb-0.5">
                       Примечания
                     </dt>
-                    <dd className="mt-1 text-sm text-gray-900">
+                    <dd className="text-sm text-heading">
                       {selectedAthlete.notes}
                     </dd>
                   </div>
                 )}
               </dl>
-            </div>
+            </InfoCard>
 
-            <div className="bg-white shadow rounded-lg p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-title font-semibold text-heading">Нормативы</h2>
+            <InfoCard
+              title="Нормативы"
+              actions={
                 <button
                   onClick={() => setShowAddNorm(!showAddNorm)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium"
                 >
                   {showAddNorm ? 'Отмена' : 'Добавить норматив'}
                 </button>
-              </div>
+              }
+            >
 
               {showAddNorm && (
                 <form onSubmit={handleAddNorm} className="mb-6 space-y-4 p-4 bg-gray-50 rounded-lg">
@@ -1033,7 +1026,7 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
                         Значение
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Статус
+                        Оценка
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Комментарий
@@ -1097,11 +1090,10 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </InfoCard>
           </div>
         )}
-      </main>
-    </div>
+      </div>
   )
 }
 

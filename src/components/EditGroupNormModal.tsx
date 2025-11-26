@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Button, Alert } from '@/components/ui'
 
 interface NormData {
   normId?: string
@@ -191,7 +192,7 @@ export default function EditGroupNormModal({
             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-heading">
+                  <h3 className="h3">
                     Редактировать норматив
                   </h3>
                   <p className="text-sm text-gray-500 mt-1">
@@ -200,7 +201,7 @@ export default function EditGroupNormModal({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
                     type="button"
                     onClick={() => {
                       const params = new URLSearchParams({
@@ -210,10 +211,11 @@ export default function EditGroupNormModal({
                       const printUrl = `/trainer/groups/${groupId}/norms/print?${params.toString()}`
                       window.open(printUrl, '_blank')
                     }}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    variant="secondary"
+                    size="sm"
                   >
                     Печать отчёта
-                  </button>
+                  </Button>
                   <button
                     type="button"
                     onClick={onClose}
@@ -238,9 +240,7 @@ export default function EditGroupNormModal({
               </div>
 
               {error && (
-                <div className="mb-4 rounded-md bg-red-50 p-4">
-                  <div className="text-sm text-red-800">{error}</div>
-                </div>
+                <Alert variant="error" message={error} className="mb-4" />
               )}
 
               {/* Поле даты зачёта */}
@@ -332,21 +332,25 @@ export default function EditGroupNormModal({
               </div>
             </div>
 
-            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-              <button
+            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-3">
+              <Button
                 type="submit"
+                variant="primary"
+                isLoading={loading}
                 disabled={loading}
-                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+                className="w-full sm:w-auto"
               >
                 {loading ? 'Сохранение...' : 'Сохранить изменения'}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={onClose}
-                className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                variant="secondary"
+                disabled={loading}
+                className="w-full sm:w-auto"
               >
                 Отмена
-              </button>
+              </Button>
             </div>
           </form>
         </div>

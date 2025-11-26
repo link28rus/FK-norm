@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Header from './Header'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableEmptyState, Badge, Alert, Input, Button, InfoCard, useToast } from '@/components/ui'
 
 interface Trainer {
   id: string
@@ -17,6 +17,7 @@ interface Trainer {
 }
 
 export default function AdminPanel() {
+  const toast = useToast()
   const [trainers, setTrainers] = useState<Trainer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -25,6 +26,8 @@ export default function AdminPanel() {
   const [resetPasswordId, setResetPasswordId] = useState<string | null>(null)
   const [activeUntilUserId, setActiveUntilUserId] = useState<string | null>(null)
   const [activeUntilDate, setActiveUntilDate] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; fullName?: string }>({})
 
   // Форма добавления тренера
   const [formData, setFormData] = useState({
@@ -54,6 +57,25 @@ export default function AdminPanel() {
   const handleAddTrainer = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setFieldErrors({})
+
+    // Валидация
+    const errors: { email?: string; fullName?: string } = {}
+    if (!formData.email.trim()) {
+      errors.email = 'Укажите email'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'Некорректный email'
+    }
+    if (!formData.fullName.trim()) {
+      errors.fullName = 'Укажите ФИО'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      return
+    }
+
+    setSubmitting(true)
 
     try {
       const response = await fetch('/api/admin/trainers', {
@@ -66,6 +88,7 @@ export default function AdminPanel() {
 
       if (!response.ok) {
         setError(data.error || 'Ошибка создания тренера')
+        setSubmitting(false)
         return
       }
 
@@ -77,15 +100,19 @@ export default function AdminPanel() {
 
       setShowAddForm(false)
       setFormData({ email: '', fullName: '', phone: '', password: '' })
+      setSubmitting(false)
+      toast.success('Тренер успешно создан!')
       loadTrainers()
     } catch (err) {
       setError('Ошибка создания тренера')
+      setSubmitting(false)
     }
   }
 
   // Старая функция toggle-block больше не используется, заменена на handleBlockUntil/handleUnblock
 
   const handleResetPassword = async (id: string) => {
+    setError('')
     try {
       const response = await fetch(`/api/admin/trainers/${id}/reset-password`, {
         method: 'POST',
@@ -100,6 +127,7 @@ export default function AdminPanel() {
 
       setNewPassword(data.password)
       setResetPasswordId(id)
+      toast.success('Пароль успешно сброшен!')
     } catch (err) {
       setError('Ошибка сброса пароля')
     }
@@ -122,6 +150,7 @@ export default function AdminPanel() {
       }
 
       loadTrainers()
+      toast.success('Пользователь успешно удалён!')
     } catch (err) {
       setError('Ошибка удаления пользователя')
     }
@@ -149,6 +178,7 @@ export default function AdminPanel() {
       }
 
       loadTrainers()
+      toast.success(`Роль успешно изменена на ${newRole === 'ADMIN' ? 'администратора' : 'тренера'}!`)
     } catch (err) {
       setError('Ошибка изменения роли')
     }
@@ -180,6 +210,7 @@ export default function AdminPanel() {
       setActiveUntilUserId(null)
       setActiveUntilDate('')
       await loadTrainers()
+      toast.success('Срок действия успешно установлен!')
     } catch (err: any) {
       console.error('Request error:', err)
       setError(err.message || 'Ошибка установки срока действия')
@@ -203,6 +234,7 @@ export default function AdminPanel() {
       }
 
       loadTrainers()
+      toast.success('Ограничение успешно снято!')
     } catch (err) {
       setError('Ошибка снятия ограничения')
     }
@@ -256,234 +288,225 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header title="Админ-панель" showTrainerCabinetLink={true} userRole="ADMIN" />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div>
         <div className="mb-4 no-print">
-          <h1 className="text-3xl font-bold text-heading">Админ-панель</h1>
+          <h1 className="h1">Админ-панель</h1>
         </div>
-        <div className="mb-6 space-y-4 no-print">
-          <div className="flex gap-4">
-            <a
-              href="/admin/norm-templates"
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              Шаблоны нормативов
-            </a>
-          </div>
+        <div className="mb-6 no-print">
           <div className="flex justify-between items-center">
-            <h2 className="text-title font-semibold text-heading">Тренеры</h2>
-            <button
+            <h2 className="h2">Тренеры</h2>
+            <Button
               onClick={() => setShowAddForm(!showAddForm)}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              variant={showAddForm ? 'secondary' : 'primary'}
             >
               {showAddForm ? 'Отмена' : 'Добавить тренера'}
-            </button>
+            </Button>
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-4">
-            <div className="text-sm text-red-800">{error}</div>
-          </div>
+          <Alert variant="error" message={error} className="mb-4" />
         )}
 
         {newPassword && resetPasswordId && (
-          <div className="mb-4 rounded-md bg-green-50 p-4 border border-green-200">
-            <div className="text-sm font-medium text-green-800 mb-2">
-              Новый пароль для тренера:
+          <Alert
+            variant="success"
+            title="Новый пароль для тренера:"
+            className="mb-4"
+            onClose={() => {
+              setNewPassword(null)
+              setResetPasswordId(null)
+            }}
+          >
+            <div className="mt-2">
+              <div className="text-lg font-mono bg-white p-2 rounded border border-green-300">
+                {newPassword}
+              </div>
             </div>
-            <div className="text-lg font-mono bg-white p-2 rounded border border-green-300 mb-2">
-              {newPassword}
-            </div>
-            <button
-              onClick={() => {
-                setNewPassword(null)
-                setResetPasswordId(null)
-              }}
-              className="text-sm text-green-700 hover:text-green-900 underline"
-            >
-              Закрыть
-            </button>
-          </div>
+          </Alert>
         )}
 
         {showAddForm && (
-          <div className="mb-6 bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-heading mb-4">Добавить тренера</h3>
+          <InfoCard title="Добавить тренера" className="mb-6">
             <form onSubmit={handleAddTrainer} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-heading mb-1">
-                  Email *
-                </label>
-                <input
+              {error && (
+                <Alert variant="error" message={error} />
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Email"
                   type="email"
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-white text-heading px-3 py-2"
+                  error={fieldErrors.email}
                   value={formData.email}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setFormData({ ...formData, email: e.target.value })
-                  }
+                    if (fieldErrors.email) {
+                      setFieldErrors({ ...fieldErrors, email: undefined })
+                    }
+                  }}
+                  disabled={submitting}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-heading mb-1">
-                  ФИО *
-                </label>
-                <input
+                <Input
+                  label="ФИО"
                   type="text"
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-white text-heading px-3 py-2"
+                  error={fieldErrors.fullName}
                   value={formData.fullName}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setFormData({ ...formData, fullName: e.target.value })
-                  }
+                    if (fieldErrors.fullName) {
+                      setFieldErrors({ ...fieldErrors, fullName: undefined })
+                    }
+                  }}
+                  disabled={submitting}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-heading mb-1">
-                  Телефон
-                </label>
-                <input
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Телефон"
                   type="tel"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-white text-heading px-3 py-2"
                   value={formData.phone}
                   onChange={(e) =>
                     setFormData({ ...formData, phone: e.target.value })
                   }
+                  disabled={submitting}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-heading mb-1">
-                  Пароль (оставьте пустым для автогенерации)
-                </label>
-                <input
+                <Input
+                  label="Пароль (оставьте пустым для автогенерации)"
                   type="password"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-white text-heading px-3 py-2"
                   value={formData.password}
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
                   }
+                  disabled={submitting}
                 />
               </div>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-              >
-                Создать
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  isLoading={submitting}
+                  disabled={submitting}
+                  className="w-full sm:w-auto"
+                >
+                  {submitting ? 'Создание...' : 'Создать'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setShowAddForm(false)
+                    setFormData({ email: '', fullName: '', phone: '', password: '' })
+                    setFieldErrors({})
+                  }}
+                  disabled={submitting}
+                  className="w-full sm:w-auto"
+                >
+                  Отмена
+                </Button>
+              </div>
             </form>
-          </div>
+          </InfoCard>
         )}
 
         {loading ? (
           <div className="text-center py-8">Загрузка...</div>
         ) : (
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ФИО
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Роль
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Статус
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Дата создания
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Действия
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {trainers.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                        Нет пользователей
-                      </td>
-                    </tr>
-                  ) : (
-                    trainers.map((trainer) => {
-                      const status = getStatus(trainer)
-                      const hasActiveUntil = trainer.activeUntil !== null && trainer.activeUntil !== undefined
-                      const activeUntilDate = trainer.activeUntil ? new Date(trainer.activeUntil) : null
-                      const now = new Date()
-                      now.setHours(0, 0, 0, 0)
-                      const isExpired = activeUntilDate && now > activeUntilDate
-                      
-                      return (
-                        <tr key={trainer.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-heading">
-                            {trainer.trainerProfile?.fullName || '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {trainer.email}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                trainer.role === 'ADMIN'
-                                  ? 'bg-purple-100 text-purple-800'
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}
-                            >
-                              {trainer.role === 'ADMIN' ? 'Администратор' : 'Тренер'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="space-y-1">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${status.color}`}>
-                                {status.text}
-                              </span>
-                              {hasActiveUntil && !isExpired && activeUntilDate && (
-                                <div className="text-xs text-gray-500">
-                                  Активен до {activeUntilDate.toLocaleDateString('ru-RU')}
-                                </div>
-                              )}
-                              {hasActiveUntil && isExpired && (
-                                <div className="text-xs text-red-500">
-                                  Срок действия истёк
-                                </div>
-                              )}
-                              {!hasActiveUntil && (
-                                <div className="text-xs text-gray-500">
-                                  Без ограничения по дате
-                                </div>
-                              )}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ФИО</TableHead>
+                <TableHead className="hidden md:table-cell">Email</TableHead>
+                <TableHead>Роль</TableHead>
+                <TableHead>Статус</TableHead>
+                <TableHead className="hidden lg:table-cell">Дата создания</TableHead>
+                <TableHead align="right">Действия</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {trainers.length === 0 ? (
+                <TableEmptyState
+                  colSpan={7}
+                  message="Тренеры пока не добавлены"
+                  actionLabel="Добавить тренера"
+                  onAction={() => setShowAddForm(true)}
+                />
+              ) : (
+                trainers.map((trainer) => {
+                  const status = getStatus(trainer)
+                  const hasActiveUntil = trainer.activeUntil !== null && trainer.activeUntil !== undefined
+                  const activeUntilDate = trainer.activeUntil ? new Date(trainer.activeUntil) : null
+                  const now = new Date()
+                  now.setHours(0, 0, 0, 0)
+                  const isExpired = activeUntilDate && now > activeUntilDate
+                  
+                  return (
+                    <TableRow key={trainer.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                          <span>{trainer.trainerProfile?.fullName || '—'}</span>
+                          <span className="text-xs text-secondary md:hidden mt-1">{trainer.email}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-secondary hidden md:table-cell">
+                        {trainer.email}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={trainer.role === 'ADMIN' ? 'info' : 'default'}>
+                          {trainer.role === 'ADMIN' ? 'Администратор' : 'Тренер'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Badge variant={status.text === 'Активен' ? 'success' : status.text === 'Заблокирован' ? 'danger' : 'default'}>
+                            {status.text}
+                          </Badge>
+                          {hasActiveUntil && !isExpired && activeUntilDate && (
+                            <div className="text-xs text-secondary">
+                              Активен до {activeUntilDate.toLocaleDateString('ru-RU')}
                             </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(trainer.createdAt)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          )}
+                          {hasActiveUntil && isExpired && (
+                            <div className="text-xs text-danger">
+                              Срок действия истёк
+                            </div>
+                          )}
+                          {!hasActiveUntil && (
+                            <div className="text-xs text-secondary">
+                              Без ограничения по дате
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-secondary hidden lg:table-cell">
+                        {formatDate(trainer.createdAt)}
+                      </TableCell>
+                          <TableCell align="right">
                             <div className="flex flex-wrap gap-2 justify-end">
                               {trainer.role !== 'ADMIN' && (
-                                <button
+                                <Button
                                   onClick={() => handleChangeRole(trainer.id, trainer.role)}
-                                  className="text-purple-600 hover:text-purple-900"
+                                  variant="secondary"
+                                  size="sm"
+                                  className="w-full sm:w-auto text-xs"
                                 >
-                                  Назначить админом
-                                </button>
+                                  <span className="hidden sm:inline">Назначить админом</span>
+                                  <span className="sm:hidden">Админ</span>
+                                </Button>
                               )}
                               {trainer.role === 'ADMIN' && (
-                                <button
+                                <Button
                                   onClick={() => handleChangeRole(trainer.id, trainer.role)}
-                                  className="text-blue-600 hover:text-blue-900"
+                                  variant="secondary"
+                                  size="sm"
+                                  className="w-full sm:w-auto text-xs"
                                 >
-                                  Снять админа
-                                </button>
+                                  <span className="hidden sm:inline">Снять админа</span>
+                                  <span className="sm:hidden">Снять</span>
+                                </Button>
                               )}
-                              <button
+                              <Button
                                 onClick={() => {
                                   setActiveUntilUserId(trainer.id)
                                   if (trainer.activeUntil) {
@@ -493,40 +516,47 @@ export default function AdminPanel() {
                                     setActiveUntilDate('')
                                   }
                                 }}
-                                className="text-orange-600 hover:text-orange-900"
+                                variant="secondary"
+                                size="sm"
+                                className="w-full sm:w-auto text-xs"
                               >
-                                {hasActiveUntil ? 'Изменить срок действия' : 'Ограничить по дате...'}
-                              </button>
+                                {hasActiveUntil ? 'Изменить срок' : 'Ограничить по дате'}
+                              </Button>
                               {hasActiveUntil && (
-                                <button
+                                <Button
                                   onClick={() => handleRemoveActiveUntil(trainer.id)}
-                                  className="text-green-600 hover:text-green-900"
+                                  variant="secondary"
+                                  size="sm"
+                                  className="w-full sm:w-auto text-xs"
                                 >
                                   Снять ограничение
-                                </button>
+                                </Button>
                               )}
-                              <button
+                              <Button
                                 onClick={() => handleResetPassword(trainer.id)}
-                                className="text-indigo-600 hover:text-indigo-900"
+                                variant="secondary"
+                                size="sm"
+                                className="w-full sm:w-auto text-xs"
                               >
-                                Сбросить пароль
-                              </button>
-                              <button
+                                <span className="hidden sm:inline">Сбросить пароль</span>
+                                <span className="sm:hidden">Пароль</span>
+                              </Button>
+                              <Button
                                 onClick={() => handleDeleteUser(trainer.id)}
-                                className="text-red-600 hover:text-red-900"
+                                variant="danger"
+                                size="sm"
+                                className="w-full sm:w-auto text-xs"
                               >
                                 Удалить
-                              </button>
+                              </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )
                     })
                   )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                </TableBody>
+              </Table>
         )}
 
         {/* Модальное окно установки срока действия */}
@@ -543,7 +573,7 @@ export default function AdminPanel() {
               <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-heading">
+                    <h3 className="h3">
                       Срок действия аккаунта
                     </h3>
                     <button
@@ -571,52 +601,48 @@ export default function AdminPanel() {
                     </button>
                   </div>
                   <div className="mb-4">
-                    <label className="block text-sm font-semibold text-heading mb-1">
-                      Аккаунт активен до (дата включительно) *
-                    </label>
-                    <input
+                    <Input
+                      label="Аккаунт активен до (дата включительно)"
                       type="date"
                       required
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white text-heading px-3 py-2 border"
                       value={activeUntilDate}
                       onChange={(e) => setActiveUntilDate(e.target.value)}
                     />
-                    <p className="mt-2 text-xs text-gray-500">
+                    <p className="mt-2 text-xs text-secondary">
                       Пользователь будет активен до указанной даты включительно. После этой даты доступ будет автоматически заблокирован.
                     </p>
                   </div>
                 </div>
-                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                  <button
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-3">
+                  <Button
                     type="button"
                     onClick={() => handleSetActiveUntil(activeUntilUserId)}
-                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm"
+                    variant="primary"
                   >
                     Сохранить
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     onClick={() => handleRemoveActiveUntil(activeUntilUserId)}
-                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                    variant="secondary"
                   >
                     Снять ограничение
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     onClick={() => {
                       setActiveUntilUserId(null)
                       setActiveUntilDate('')
                     }}
-                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                    variant="secondary"
                   >
                     Отмена
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
           </div>
         )}
-      </main>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableEmptyState, Badge, Alert, Button, InfoCard, useToast } from '@/components/ui'
 
 interface NormTemplate {
   id: string
@@ -38,6 +39,7 @@ interface Trainer {
 }
 
 export default function NormTemplatesAdmin() {
+  const toast = useToast()
   const [templates, setTemplates] = useState<NormTemplate[]>([])
   const [trainers, setTrainers] = useState<Trainer[]>([])
   const [loading, setLoading] = useState(true)
@@ -254,6 +256,7 @@ export default function NormTemplatesAdmin() {
       setValidationErrors({})
       setOverlapWarnings({})
       loadTemplates()
+      toast.success(editingTemplate ? 'Шаблон успешно обновлён!' : 'Шаблон успешно создан!')
     } catch (err) {
       setError('Ошибка сохранения шаблона')
     }
@@ -274,6 +277,7 @@ export default function NormTemplatesAdmin() {
       }
 
       loadTemplates()
+      toast.success('Шаблон успешно удалён!')
     } catch (err) {
       setError('Ошибка удаления шаблона')
     }
@@ -335,11 +339,11 @@ export default function NormTemplatesAdmin() {
   if (showForm) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-title font-semibold text-heading">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h2 className="h2">
             {editingTemplate ? 'Редактировать шаблон' : 'Создать шаблон норматива'}
           </h2>
-          <button
+          <Button
             onClick={() => {
               setShowForm(false)
               setEditingTemplate(null)
@@ -354,10 +358,11 @@ export default function NormTemplatesAdmin() {
               setValidationErrors({})
               setOverlapWarnings({})
             }}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            variant="secondary"
+            className="w-full sm:w-auto"
           >
             Отмена
-          </button>
+          </Button>
         </div>
 
         {/* Информационный блок вверху */}
@@ -371,21 +376,17 @@ export default function NormTemplatesAdmin() {
         </div>
 
         {error && (
-          <div className="rounded-md bg-red-50 p-4">
-            <div className="text-sm text-red-800">{error}</div>
-          </div>
+          <Alert variant="error" message={error} />
         )}
 
         {validationErrors.boundaries && (
-          <div className="rounded-md bg-yellow-50 p-4 border border-yellow-200">
-            <div className="text-sm text-yellow-800">{validationErrors.boundaries}</div>
-          </div>
+          <Alert variant="warning" message={validationErrors.boundaries} />
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-8 bg-white p-6 rounded-lg shadow">
+        <form onSubmit={handleSubmit} className="space-y-8 bg-white p-4 sm:p-6 rounded-lg shadow">
           {/* Блок 1: Основная информация */}
           <div className="border-b pb-6">
-            <h3 className="text-subtitle font-semibold text-heading mb-4">🔹 Основная информация</h3>
+            <h3 className="h3 mb-4">🔹 Основная информация</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -422,7 +423,7 @@ export default function NormTemplatesAdmin() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Единица измерения *
@@ -469,7 +470,7 @@ export default function NormTemplatesAdmin() {
 
           {/* Блок 2: Класс */}
           <div className="border-b pb-6">
-            <h3 className="text-subtitle font-semibold text-heading mb-4">🔹 Класс для которого действует шаблон</h3>
+            <h3 className="h3 mb-4">🔹 Класс для которого действует шаблон</h3>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Класс норматива *
@@ -507,7 +508,7 @@ export default function NormTemplatesAdmin() {
           {/* Блок 3: Границы оценок */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-heading">🔹 Границы оценок</h3>
+              <h3 className="h3">🔹 Границы оценок</h3>
               <button
                 type="button"
                 onClick={initializeBoundaries}
@@ -520,11 +521,12 @@ export default function NormTemplatesAdmin() {
             {/* Таблицы границ для одного класса */}
             <div className="space-y-6">
               <div>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Мальчики */}
                   <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
                     <h4 className="text-base font-semibold text-heading mb-3">Мальчики</h4>
-                    <table className="min-w-full border-collapse border border-gray-300 bg-white">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border-collapse border border-gray-300 bg-white">
                       <thead className="bg-gray-100">
                         <tr>
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">Оценка</th>
@@ -607,7 +609,8 @@ export default function NormTemplatesAdmin() {
                           )
                         })}
                       </tbody>
-                    </table>
+                      </table>
+                    </div>
                     {overlapWarnings[`${formData.class}-MALE`] && (
                       <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
                         {overlapWarnings[`${formData.class}-MALE`].map((w, i) => (
@@ -623,7 +626,8 @@ export default function NormTemplatesAdmin() {
                   {/* Девочки */}
                   <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
                     <h4 className="text-base font-semibold text-heading mb-3">Девочки</h4>
-                    <table className="min-w-full border-collapse border border-gray-300 bg-white">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border-collapse border border-gray-300 bg-white">
                       <thead className="bg-gray-100">
                         <tr>
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">Оценка</th>
@@ -706,7 +710,8 @@ export default function NormTemplatesAdmin() {
                           )
                         })}
                       </tbody>
-                    </table>
+                      </table>
+                    </div>
                     {overlapWarnings[`${formData.class}-FEMALE`] && (
                       <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
                         {overlapWarnings[`${formData.class}-FEMALE`].map((w, i) => (
@@ -725,7 +730,7 @@ export default function NormTemplatesAdmin() {
 
           {/* Тип шаблона (только для админа) */}
           <div className="border-t pt-6">
-            <h3 className="text-sm font-medium text-heading mb-4">Тип шаблона</h3>
+            <h3 className="h3 mb-4">Тип шаблона</h3>
             <div className="space-y-4">
               <div>
                 <label className="flex items-center">
@@ -778,7 +783,7 @@ export default function NormTemplatesAdmin() {
 
           {/* Блок "Как настраивать шаблон" */}
           <div className="border-t pt-6 bg-gray-50 -mx-6 -mb-6 p-6 rounded-b-lg">
-            <h3 className="text-subtitle font-semibold text-heading mb-4">📖 Как заполнять границы оценок</h3>
+            <h3 className="h3 mb-4">📖 Как заполнять границы оценок</h3>
             <div className="space-y-4 text-sm text-gray-700">
               <div>
                 <p className="font-medium mb-3">Правила заполнения:</p>
@@ -819,8 +824,8 @@ export default function NormTemplatesAdmin() {
             </div>
           </div>
 
-          <div className="flex gap-3 justify-end pt-6 border-t">
-            <button
+          <div className="flex flex-col sm:flex-row gap-3 justify-end pt-6 border-t">
+            <Button
               type="button"
               onClick={() => {
                 setShowForm(false)
@@ -828,16 +833,18 @@ export default function NormTemplatesAdmin() {
                 setValidationErrors({})
                 setOverlapWarnings({})
               }}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              variant="secondary"
+              className="w-full sm:w-auto"
             >
               Отмена
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+              variant="primary"
+              className="w-full sm:w-auto"
             >
               Сохранить
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -846,121 +853,103 @@ export default function NormTemplatesAdmin() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-title font-semibold text-heading">Шаблоны нормативов</h2>
-        <button
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h2 className="h2">Шаблоны нормативов</h2>
+        <Button
           onClick={() => setShowForm(true)}
-          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+          variant="primary"
+          className="w-full sm:w-auto"
         >
           Добавить шаблон
-        </button>
+        </Button>
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <div className="text-sm text-red-800">{error}</div>
-        </div>
+        <Alert variant="error" message={error} className="mb-4" />
       )}
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Название
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Единица
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Классы
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Направление
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Тип
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Границы
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Статус
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Действия
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {templates.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
-                  Нет шаблонов. Создайте первый шаблон.
-                </td>
-              </tr>
-            ) : (
-              templates.map((template) => (
-                <tr key={template.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-heading">
-                    {template.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {template.unit}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {template.classFrom}–{template.classTo}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {template.direction === 'LOWER_IS_BETTER' ? 'Меньше = лучше' : 'Больше = лучше'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {template.ownerTrainerId ? (
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                        Личный {template.ownerTrainer?.fullName ? `(${template.ownerTrainer.fullName})` : ''}
-                      </span>
-                    ) : template.isPublic ? (
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                        Общий
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                        Личный
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {template._count?.boundaries || 0}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      template.isActive
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {template.isActive ? 'Активен' : 'Неактивен'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
+      {templates.length === 0 ? (
+        <TableEmptyState
+          colSpan={8}
+          message="Шаблоны нормативов пока не созданы"
+          actionLabel="Добавить шаблон"
+          onAction={() => setShowForm(true)}
+        />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Название</TableHead>
+              <TableHead>Единица</TableHead>
+              <TableHead>Классы</TableHead>
+              <TableHead>Направление</TableHead>
+              <TableHead>Тип</TableHead>
+              <TableHead>Границы</TableHead>
+              <TableHead>Статус</TableHead>
+              <TableHead align="right">Действия</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {templates.map((template) => (
+              <TableRow key={template.id}>
+                <TableCell className="font-medium">
+                  {template.name}
+                </TableCell>
+                <TableCell className="text-secondary">
+                  {template.unit}
+                </TableCell>
+                <TableCell className="text-secondary">
+                  {template.classFrom}–{template.classTo}
+                </TableCell>
+                <TableCell className="text-secondary">
+                  {template.direction === 'LOWER_IS_BETTER' ? 'Меньше = лучше' : 'Больше = лучше'}
+                </TableCell>
+                <TableCell>
+                  {template.ownerTrainerId ? (
+                    <Badge variant="info">
+                      Личный {template.ownerTrainer?.fullName ? `(${template.ownerTrainer.fullName})` : ''}
+                    </Badge>
+                  ) : template.isPublic ? (
+                    <Badge variant="success">
+                      Общий
+                    </Badge>
+                  ) : (
+                    <Badge variant="default">
+                      Личный
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-secondary">
+                  {template._count?.boundaries || 0}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={template.isActive ? 'success' : 'default'}>
+                    {template.isActive ? 'Активен' : 'Неактивен'}
+                  </Badge>
+                </TableCell>
+                <TableCell align="right">
+                  <div className="flex justify-end gap-2">
+                    <Button
                       onClick={() => loadTemplate(template.id)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-4"
+                      variant="secondary"
+                      size="sm"
                     >
                       Редактировать
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => handleDelete(template.id)}
-                      className="text-red-600 hover:text-red-900"
+                      variant="danger"
+                      size="sm"
                     >
                       Удалить
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
     </div>
   )
 }

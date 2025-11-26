@@ -703,7 +703,7 @@ export default function JournalTable({ groupId }: { groupId: string }) {
       {editingMarks && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-heading mb-4">
+            <h3 className="h3 mb-4">
               Оценки за урок
             </h3>
             <div className="space-y-4">

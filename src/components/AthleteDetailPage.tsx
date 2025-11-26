@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Header from './Header'
 import EditAthleteModal from './EditAthleteModal'
+import { Input, NumberInput, Select, Textarea, Button, Alert, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableEmptyState, GradeBadge, InfoCard, useToast } from '@/components/ui'
 
 interface Athlete {
   id: string
@@ -28,6 +28,7 @@ interface Norm {
   status: string
   date: string
   comment?: string
+  normType?: string
 }
 
 export default function AthleteDetailPage({
@@ -40,17 +41,19 @@ export default function AthleteDetailPage({
   userRole?: string
 }) {
   const router = useRouter()
+  const toast = useToast()
   const [athlete, setAthlete] = useState<Athlete | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showAddNorm, setShowAddNorm] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
-  const [successMessage, setSuccessMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<{ type?: string; status?: string }>({})
   const [normForm, setNormForm] = useState({
     type: '',
     value: '',
     unit: '',
-    status: 'Сдано',
+    status: '-', // Оценка: "-", "2", "3", "4", "5", "Б", "О"
     date: new Date().toISOString().split('T')[0],
     comment: '',
   })
@@ -76,6 +79,23 @@ export default function AthleteDetailPage({
     e.preventDefault()
     if (!athlete) return
     setError('')
+    setFieldErrors({})
+
+    // Валидация
+    const errors: { type?: string; status?: string } = {}
+    if (!normForm.type.trim()) {
+      errors.type = 'Укажите тип норматива'
+    }
+    if (!normForm.status || normForm.status === '-') {
+      errors.status = 'Выберите оценку'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      return
+    }
+
+    setSubmitting(true)
 
     try {
       const response = await fetch('/api/trainer/norms', {
@@ -99,13 +119,16 @@ export default function AthleteDetailPage({
         type: '',
         value: '',
         unit: '',
-        status: 'Сдано',
+        status: '-',
         date: new Date().toISOString().split('T')[0],
         comment: '',
       })
+      setSubmitting(false)
+      toast.success('Норматив успешно добавлен!')
       loadAthlete()
     } catch (err) {
       setError('Ошибка создания норматива')
+      setSubmitting(false)
     }
   }
 
@@ -118,6 +141,7 @@ export default function AthleteDetailPage({
       })
 
       if (!response.ok) throw new Error('Ошибка удаления')
+      toast.success('Норматив успешно удалён!')
       loadAthlete()
     } catch (err) {
       setError('Ошибка удаления норматива')
@@ -153,287 +177,273 @@ export default function AthleteDetailPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header title={athlete.fullName} userFullName={userFullName} userRole={userRole} />
+    <div className="space-y-6">
+      {error && (
+        <Alert variant="error" message={error} />
+      )}
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-4 no-print">
-          <button
-            onClick={() => router.back()}
-            className="text-sm text-gray-600 hover:text-gray-900 mb-4"
+      {/* Заголовок страницы */}
+      <div className="mb-4">
+        <h1 className="h1">{athlete.fullName}</h1>
+        {athlete.group && (
+          <p className="mt-1 text-sm text-secondary">
+            {athlete.group.name} · учебный год {athlete.group.schoolYear || athlete.schoolYear}
+          </p>
+        )}
+      </div>
+
+      {/* Данные учащегося */}
+      <InfoCard
+        title="Данные ученика"
+        actions={
+          <Button
+            onClick={() => setShowEditModal(true)}
+            variant="secondary"
+            size="sm"
           >
-            ← Назад
-          </button>
-        </div>
-
-        {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-4">
-            <div className="text-sm text-red-800">{error}</div>
-          </div>
-        )}
-
-        {successMessage && (
-          <div className="mb-4 rounded-md bg-green-50 p-4">
-            <div className="text-sm text-green-800">{successMessage}</div>
-          </div>
-        )}
-
-        {/* Заголовок */}
-        <div className="mb-4 no-print">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-heading">{athlete.fullName}</h1>
-            <button
-              onClick={() => setShowEditModal(true)}
-              className="text-sm text-blue-600 hover:text-blue-800 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-2 py-1"
-              title="Редактировать данные ученика"
-            >
-              ✏️ Редактировать
-            </button>
-          </div>
-          {athlete.group && (
-            <p className="mt-1 text-sm text-blue-600 font-semibold">
-              {athlete.group.name} · учебный год {athlete.group.schoolYear || athlete.schoolYear}
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-6">
-          {/* Данные учащегося */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-              {athlete.group && (
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Группа</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{athlete.group.name}</dd>
-                </div>
-              )}
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Дата рождения</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  {athlete.birthDate
-                    ? new Date(athlete.birthDate).toLocaleDateString('ru-RU')
-                    : '-'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Возраст</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  {calculateAge(athlete.birthDate)
-                    ? `${calculateAge(athlete.birthDate)} лет`
-                    : '-'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Пол</dt>
-                <dd className="mt-1 text-sm text-gray-900">{athlete.gender || '-'}</dd>
-              </div>
-              {athlete.notes && (
-                <div className="sm:col-span-2">
-                  <dt className="text-sm font-medium text-gray-500">Примечания</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{athlete.notes}</dd>
-                </div>
-              )}
-            </dl>
-          </div>
-
-          {/* Нормативы */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-title font-semibold text-heading">
-                Нормативы
-              </h2>
-              <button
-                onClick={() => setShowAddNorm(!showAddNorm)}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-              >
-                {showAddNorm ? 'Отмена' : 'Добавить норматив'}
-              </button>
+            Редактировать
+          </Button>
+        }
+      >
+          <dl className="space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-start">
+              <dt className="text-sm font-medium text-secondary w-full sm:w-32 flex-shrink-0 mb-1 sm:mb-0">Дата рождения</dt>
+              <dd className="text-sm text-heading">
+                {athlete.birthDate
+                  ? new Date(athlete.birthDate).toLocaleDateString('ru-RU')
+                  : '—'}
+              </dd>
             </div>
-
-            {showAddNorm && (
-              <form onSubmit={handleAddNorm} className="mb-6 space-y-4 p-4 bg-gray-50 rounded-lg">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Тип норматива *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      value={normForm.type}
-                      onChange={(e) =>
-                        setNormForm({ ...normForm, type: e.target.value })
-                      }
-                      placeholder="Например: Подтягивания"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Статус *
-                    </label>
-                    <select
-                      required
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      value={normForm.status}
-                      onChange={(e) =>
-                        setNormForm({ ...normForm, status: e.target.value })
-                      }
-                    >
-                      <option value="Сдано">Сдано</option>
-                      <option value="Не сдано">Не сдано</option>
-                      <option value="Освобожден">Освобожден</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Значение
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      value={normForm.value}
-                      onChange={(e) =>
-                        setNormForm({ ...normForm, value: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Единица измерения
-                    </label>
-                    <input
-                      type="text"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      value={normForm.unit}
-                      onChange={(e) =>
-                        setNormForm({ ...normForm, unit: e.target.value })
-                      }
-                      placeholder="раз, сек, м"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Дата *
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      value={normForm.date}
-                      onChange={(e) =>
-                        setNormForm({ ...normForm, date: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Комментарий
-                  </label>
-                  <textarea
-                    rows={2}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    value={normForm.comment}
-                    onChange={(e) =>
-                      setNormForm({ ...normForm, comment: e.target.value })
-                    }
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                >
-                  Добавить
-                </button>
-              </form>
+            <div className="flex flex-col sm:flex-row sm:items-start">
+              <dt className="text-sm font-medium text-secondary w-full sm:w-32 flex-shrink-0 mb-1 sm:mb-0">Возраст</dt>
+              <dd className="text-sm text-heading">
+                {calculateAge(athlete.birthDate)
+                  ? `${calculateAge(athlete.birthDate)} лет`
+                  : '—'}
+              </dd>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-start">
+              <dt className="text-sm font-medium text-secondary w-full sm:w-32 flex-shrink-0 mb-1 sm:mb-0">Пол</dt>
+              <dd className="text-sm text-heading">{athlete.gender || '—'}</dd>
+            </div>
+            {athlete.group && (
+              <div className="flex flex-col sm:flex-row sm:items-start">
+                <dt className="text-sm font-medium text-secondary w-full sm:w-32 flex-shrink-0 mb-1 sm:mb-0">Группа</dt>
+                <dd className="text-sm text-heading">{athlete.group.name}</dd>
+              </div>
             )}
+            {athlete.notes && (
+              <div className="flex flex-col sm:flex-row sm:items-start pt-2 border-t border-gray-200">
+                <dt className="text-sm font-medium text-secondary w-full sm:w-32 flex-shrink-0 mb-1 sm:mb-0">Примечания</dt>
+                <dd className="text-sm text-heading">{athlete.notes}</dd>
+              </div>
+            )}
+          </dl>
+        </InfoCard>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Дата
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Тип
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Значение
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Статус
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Комментарий
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Действия
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {athlete.norms.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={6}
-                        className="px-6 py-4 text-center text-gray-500"
-                      >
-                        Нет нормативов
-                      </td>
-                    </tr>
-                  ) : (
-                    athlete.norms.map((norm) => (
-                      <tr key={norm.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(norm.date).toLocaleDateString('ru-RU')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {norm.type}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {norm.value !== null && norm.value !== undefined
-                            ? `${norm.value}${norm.unit ? ` ${norm.unit}` : ''}`
-                            : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              norm.status === 'Сдано'
-                                ? 'bg-green-100 text-green-800'
-                                : norm.status === 'Не сдано'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            {norm.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {norm.comment || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
+        {/* Форма добавления норматива */}
+        {showAddNorm && (
+          <InfoCard title="Добавить норматив">
+            <form onSubmit={handleAddNorm} className="space-y-4">
+              {error && (
+                <Alert variant="error" message={error} />
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Тип норматива"
+                  type="text"
+                  required
+                  error={fieldErrors.type}
+                  value={normForm.type}
+                  onChange={(e) => {
+                    setNormForm({ ...normForm, type: e.target.value })
+                    if (fieldErrors.type) {
+                      setFieldErrors({ ...fieldErrors, type: undefined })
+                    }
+                  }}
+                  placeholder="Например: Подтягивания"
+                  disabled={submitting}
+                />
+                <Select
+                  label="Оценка"
+                  required
+                  error={fieldErrors.status}
+                  options={[
+                    { value: '-', label: '— (не указана)' },
+                    { value: '2', label: '2' },
+                    { value: '3', label: '3' },
+                    { value: '4', label: '4' },
+                    { value: '5', label: '5' },
+                    { value: 'Б', label: 'Б (больной)' },
+                    { value: 'О', label: 'О (освобожден)' },
+                  ]}
+                  value={normForm.status}
+                  onChange={(e) => {
+                    setNormForm({ ...normForm, status: e.target.value })
+                    if (fieldErrors.status) {
+                      setFieldErrors({ ...fieldErrors, status: undefined })
+                    }
+                  }}
+                  disabled={submitting}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <NumberInput
+                  label="Значение"
+                  step="0.01"
+                  value={normForm.value}
+                  onChange={(e) =>
+                    setNormForm({ ...normForm, value: e.target.value })
+                  }
+                  disabled={submitting}
+                />
+                <Input
+                  label="Единица измерения"
+                  type="text"
+                  value={normForm.unit}
+                  onChange={(e) =>
+                    setNormForm({ ...normForm, unit: e.target.value })
+                  }
+                  placeholder="раз, сек, м"
+                  disabled={submitting}
+                />
+                <Input
+                  label="Дата"
+                  type="date"
+                  required
+                  value={normForm.date}
+                  onChange={(e) =>
+                    setNormForm({ ...normForm, date: e.target.value })
+                  }
+                  disabled={submitting}
+                />
+              </div>
+              <Textarea
+                label="Комментарий"
+                rows={2}
+                value={normForm.comment}
+                onChange={(e) =>
+                  setNormForm({ ...normForm, comment: e.target.value })
+                }
+                disabled={submitting}
+              />
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  isLoading={submitting}
+                  disabled={submitting}
+                  className="w-full sm:w-auto"
+                >
+                  {submitting ? 'Добавление...' : 'Добавить'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShowAddNorm(false)}
+                  disabled={submitting}
+                  className="w-full sm:w-auto"
+                >
+                  Отмена
+                </Button>
+              </div>
+            </form>
+          </InfoCard>
+        )}
+
+      {/* Индивидуальные нормативы */}
+      <InfoCard
+          title="Индивидуальные нормативы"
+          actions={
+            !showAddNorm && (
+              <Button
+                onClick={() => setShowAddNorm(true)}
+                variant="primary"
+                size="sm"
+              >
+                Добавить норматив
+              </Button>
+            )
+          }
+        >
+          {(() => {
+            // API уже фильтрует только индивидуальные нормативы, но для безопасности оставляем фильтр
+            const individualNorms = athlete.norms.filter(
+              (norm) => norm.normType === 'INDIVIDUAL' || !norm.normType // Для обратной совместимости
+            )
+
+            if (individualNorms.length === 0) {
+              return (
+                <div className="text-center py-8">
+                  <h3 className="h3 mb-2 text-heading">
+                    Индивидуальные нормативы ещё не добавлены
+                  </h3>
+                  <p className="text-secondary mb-6">
+                    Добавьте индивидуальный норматив для этого ученика.
+                  </p>
+                  <Button
+                    onClick={() => setShowAddNorm(true)}
+                    variant="primary"
+                  >
+                    Добавить норматив
+                  </Button>
+                </div>
+              )
+            }
+
+            return (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Тип норматива</TableHead>
+                    <TableHead>Результат ученика</TableHead>
+                    <TableHead>Оценка</TableHead>
+                    <TableHead className="hidden md:table-cell">Дата выполнения</TableHead>
+                    <TableHead className="hidden lg:table-cell">Комментарий</TableHead>
+                    <TableHead align="right">Действия</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {individualNorms.map((norm) => (
+                    <TableRow key={norm.id}>
+                      <TableCell className="font-medium">
+                        {norm.type}
+                      </TableCell>
+                      <TableCell className="text-secondary">
+                        {norm.value !== null && norm.value !== undefined
+                          ? `${norm.value}${norm.unit ? ` ${norm.unit}` : ''}`
+                          : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <GradeBadge grade={norm.status} />
+                      </TableCell>
+                      <TableCell className="text-secondary hidden md:table-cell">
+                        {new Date(norm.date).toLocaleDateString('ru-RU')}
+                      </TableCell>
+                      <TableCell className="text-secondary hidden lg:table-cell">
+                        {norm.comment || '—'}
+                      </TableCell>
+                      <TableCell align="right">
+                        <div className="flex justify-end gap-2 flex-wrap">
+                          <Button
                             onClick={() => handleDeleteNorm(norm.id)}
-                            className="text-red-600 hover:text-red-900"
+                            variant="danger"
+                            size="sm"
+                            className="w-full sm:w-auto"
                           >
                             Удалить
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )
+          })()}
+      </InfoCard>
 
-        {/* Модальное окно редактирования ученика */}
+      {/* Модальное окно редактирования ученика */}
         <EditAthleteModal
           athleteId={athlete.id}
           athleteFullName={athlete.fullName}
@@ -446,11 +456,9 @@ export default function AthleteDetailPage({
           onClose={() => setShowEditModal(false)}
           onSuccess={() => {
             loadAthlete()
-            setSuccessMessage('Данные ученика успешно обновлены!')
-            setTimeout(() => setSuccessMessage(''), 3000)
+            toast.success('Данные ученика успешно обновлены!')
           }}
         />
-      </main>
     </div>
   )
 }

@@ -11,9 +11,9 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, padding = 'md', children, ...props }, ref) => {
     const paddings = {
       none: '',
-      sm: 'p-4',
-      md: 'p-6',
-      lg: 'p-8',
+      sm: 'p-3 sm:p-4',
+      md: 'p-4 sm:p-6',
+      lg: 'p-6 sm:p-8',
     }
     
     return (
@@ -35,4 +35,5 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
 Card.displayName = 'Card'
 
 export default Card
+
 

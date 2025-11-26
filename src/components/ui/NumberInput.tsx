@@ -3,14 +3,14 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface NumberInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'> {
   error?: string | boolean
   label?: string
 }
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, error, label, id, type = 'text', ...props }, ref) => {
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`
+const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
+  ({ className, error, label, id, ...props }, ref) => {
+    const inputId = id || `number-input-${Math.random().toString(36).substr(2, 9)}`
     
     return (
       <div className="w-full">
@@ -26,7 +26,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           id={inputId}
-          type={type}
+          type="number"
           className={cn(
             'block w-full rounded-md border border-neutral-300 shadow-sm',
             'px-3 py-2 text-heading text-sm',
@@ -49,7 +49,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
   }
 )
 
-Input.displayName = 'Input'
+NumberInput.displayName = 'NumberInput'
 
-export default Input
+export default NumberInput
+
 

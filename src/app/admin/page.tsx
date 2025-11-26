@@ -1,21 +1,12 @@
-import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
-import { getCurrentUserFromCookies } from '@/lib/auth'
 import AdminPanel from '@/components/AdminPanel'
 
 export default async function AdminPage() {
-  const cookieStore = await cookies()
-  const user = await getCurrentUserFromCookies(cookieStore)
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  if (user.role !== 'ADMIN') {
-    redirect('/')
-  }
-
-  return <AdminPanel />
+  // Проверка роли происходит в layout.tsx
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <AdminPanel />
+    </div>
+  )
 }
 
 

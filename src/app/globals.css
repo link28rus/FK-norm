@@ -130,6 +130,32 @@ h5, h6 {
   font-weight: var(--font-weight-medium);
 }
 
+/* Unified Typography Classes */
+@layer components {
+  .h1 {
+    @apply text-2xl sm:text-3xl font-bold text-black leading-tight m-0;
+  }
+  
+  .h2 {
+    @apply text-xl sm:text-2xl font-semibold text-black leading-tight m-0;
+  }
+  
+  .h3 {
+    @apply text-lg sm:text-xl font-medium text-black leading-normal m-0;
+  }
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Typography - Body Text */
 p {
   color: var(--color-text-secondary);

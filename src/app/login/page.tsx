@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
   const [loading, setLoading] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
 
@@ -68,6 +69,24 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setFieldErrors({})
+
+    // Валидация
+    const errors: { email?: string; password?: string } = {}
+    if (!email.trim()) {
+      errors.email = 'Укажите email'
+    } else if (!email.includes('@')) {
+      errors.email = 'Введите корректный email'
+    }
+    if (!password) {
+      errors.password = 'Введите пароль'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -138,9 +157,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h1 className="h1 mt-6 text-center">
             Вход в систему
-          </h2>
+          </h1>
           <p className="mt-2 text-center text-sm text-gray-700 font-medium">
             Учёт нормативов по физической культуре
           </p>
@@ -153,18 +172,32 @@ export default function LoginPage() {
               type="email"
               autoComplete="email"
               required
+              label="Email"
               placeholder="Email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              error={fieldErrors.email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                if (fieldErrors.email) {
+                  setFieldErrors({ ...fieldErrors, email: undefined })
+                }
+              }}
             />
             <InputPassword
               id="password"
               name="password"
               autoComplete="current-password"
               required
+              label="Пароль"
               placeholder="Пароль"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              error={fieldErrors.password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                if (fieldErrors.password) {
+                  setFieldErrors({ ...fieldErrors, password: undefined })
+                }
+              }}
             />
           </div>
 
@@ -189,9 +222,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <Alert variant="danger" className="whitespace-pre-line">
-              {error}
-            </Alert>
+            <Alert variant="error" message={error} className="whitespace-pre-line" />
           )}
 
           <Button

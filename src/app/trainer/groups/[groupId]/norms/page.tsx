@@ -1,19 +1,19 @@
 import { cookies } from 'next/headers'
 import { getCurrentUserFromCookies } from '@/lib/auth'
-import JournalPage from '@/components/JournalPage'
+import { prisma } from '@/lib/prisma'
+import GroupNormsPage from '@/components/trainer/GroupNormsPage'
 
-export default async function GroupJournalPage({
+export default async function NormsPage({
   params,
 }: {
   params: Promise<{ groupId: string }>
 }) {
-  // Проверка роли происходит в layout.tsx
   const { groupId } = await params
   const cookieStore = await cookies()
   const user = await getCurrentUserFromCookies(cookieStore)
 
   return (
-    <JournalPage
+    <GroupNormsPage
       groupId={groupId}
       userFullName={user?.trainerProfile?.fullName || user?.email}
       userRole={user?.role}

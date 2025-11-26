@@ -51,6 +51,9 @@ export async function GET(
           },
       include: {
         norms: {
+          where: {
+            normType: 'INDIVIDUAL', // Только индивидуальные нормативы
+          },
           orderBy: { date: 'desc' },
         },
         group: {

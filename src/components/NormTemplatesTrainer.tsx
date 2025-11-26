@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Button, Alert, InfoCard } from '@/components/ui'
 
 interface NormTemplate {
   id: string
@@ -300,7 +301,7 @@ export default function NormTemplatesTrainer() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-title font-semibold text-heading">
+          <h2 className="h2">
             {editingTemplate ? 'Редактировать личный шаблон' : 'Создать личный шаблон'}
           </h2>
           <button
@@ -338,21 +339,17 @@ export default function NormTemplatesTrainer() {
         </div>
 
         {error && (
-          <div className="rounded-md bg-red-50 p-4">
-            <div className="text-sm text-red-800">{error}</div>
-          </div>
+          <Alert variant="error" message={error} />
         )}
 
         {validationErrors.boundaries && (
-          <div className="rounded-md bg-yellow-50 p-4 border border-yellow-200">
-            <div className="text-sm text-yellow-800">{validationErrors.boundaries}</div>
-          </div>
+          <Alert variant="warning" message={validationErrors.boundaries} />
         )}
 
         <form onSubmit={handleSubmit} className="space-y-8 bg-white p-6 rounded-lg shadow">
           {/* Блок 1: Основная информация */}
           <div className="border-b pb-6">
-            <h3 className="text-subtitle font-semibold text-heading mb-4">🔹 Основная информация</h3>
+            <h3 className="h3 mb-4">🔹 Основная информация</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -436,7 +433,7 @@ export default function NormTemplatesTrainer() {
 
           {/* Блок 2: Класс */}
           <div className="border-b pb-6">
-            <h3 className="text-subtitle font-semibold text-heading mb-4">🔹 Класс для которого действует шаблон</h3>
+            <h3 className="h3 mb-4">🔹 Класс для которого действует шаблон</h3>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Класс норматива *
@@ -472,7 +469,7 @@ export default function NormTemplatesTrainer() {
           {/* Блок 3: Границы оценок */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-subtitle font-semibold text-heading">🔹 Границы оценок</h3>
+              <h3 className="h3">🔹 Границы оценок</h3>
               <button
                 type="button"
                 onClick={initializeBoundaries}
@@ -689,7 +686,7 @@ export default function NormTemplatesTrainer() {
 
           {/* Блок "Как настраивать шаблон" */}
           <div className="border-t pt-6 bg-gray-50 -mx-6 -mb-6 p-6 rounded-b-lg">
-            <h3 className="text-subtitle font-semibold text-heading mb-4">📖 Как заполнять границы оценок</h3>
+            <h3 className="h3 mb-4">📖 Как заполнять границы оценок</h3>
             <div className="space-y-4 text-sm text-gray-700">
               <div>
                 <p className="font-medium mb-3">Правила заполнения:</p>
@@ -763,17 +760,18 @@ export default function NormTemplatesTrainer() {
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-heading mb-2">Мои шаблоны нормативов</h1>
+          <h1 className="h1 mb-2">Мои шаблоны нормативов</h1>
           <p className="text-sm text-secondary">
             Управление личными шаблонами нормативов. Вы также можете использовать общие шаблоны, созданные администратором.
           </p>
         </div>
-        <button
+        <Button
           onClick={() => setShowForm(true)}
-          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+          variant="primary"
+          className="w-full sm:w-auto"
         >
           Создать личный шаблон
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -784,7 +782,7 @@ export default function NormTemplatesTrainer() {
 
       {/* Личные шаблоны */}
       <div>
-        <h2 className="text-title font-semibold text-heading mb-4">Личные шаблоны</h2>
+        <h2 className="h2 mb-4">Личные шаблоны</h2>
         {personalTemplates.length === 0 ? (
           <div className="bg-white shadow rounded-lg p-6">
             <p className="text-gray-500 text-center">
@@ -871,7 +869,7 @@ export default function NormTemplatesTrainer() {
       {/* Общие шаблоны (только просмотр) */}
       {publicTemplates.length > 0 && (
         <div>
-          <h2 className="text-title font-semibold text-heading mb-4">Общие шаблоны (только просмотр)</h2>
+          <h2 className="h2 mb-4">Общие шаблоны (только просмотр)</h2>
           <div className="bg-white shadow rounded-lg overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">

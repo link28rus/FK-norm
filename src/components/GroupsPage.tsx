@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Header from './Header'
 import { extractClassFromGroupName } from '@/lib/groupClassExtractor'
 import { Button, Input, Select, Textarea, Alert, Card } from '@/components/ui'
+import GroupCard from './trainer/GroupCard'
 
 interface Group {
   id: string
@@ -65,6 +65,8 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
     schoolYear: getCurrentSchoolYear(), // Значение по умолчанию - текущий учебный год
   })
   const [detectedClass, setDetectedClass] = useState<number | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<{ schoolYear?: string; name?: string }>({})
+  const [submitting, setSubmitting] = useState(false)
   
   // Динамически генерируем список учебных годов
   const schoolYearOptions = getSchoolYearOptions()
@@ -105,11 +107,23 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
   const handleAddGroup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setFieldErrors({})
 
+    // Валидация
+    const errors: { schoolYear?: string; name?: string } = {}
     if (!formData.schoolYear) {
-      setError('Учебный год обязателен')
+      errors.schoolYear = 'Выберите учебный год'
+    }
+    if (!formData.name.trim()) {
+      errors.name = 'Укажите название группы'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
       return
     }
+
+    setSubmitting(true)
 
     try {
       const response = await fetch('/api/trainer/groups', {
@@ -128,6 +142,7 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
       setShowAddForm(false)
       setFormData({ name: '', description: '', schoolYear: getCurrentSchoolYear() })
       setDetectedClass(null) // Сбрасываем определенный класс
+      setSubmitting(false)
       
       // Перезагружаем группы в зависимости от выбранного года
       if (selectedSchoolYear === 'all') {
@@ -137,6 +152,7 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
       }
     } catch (err) {
       setError('Ошибка создания группы')
+      setSubmitting(false)
     }
   }
 
@@ -157,60 +173,58 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div>Загрузка...</div>
+      <div className="flex items-center justify-center py-12">
+        <div className="text-secondary">Загрузка...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header title="Группы" userFullName={userFullName} userRole={userRole} />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-4 no-print">
-          <h1 className="text-3xl font-bold text-heading">Группы</h1>
-          {selectedSchoolYear !== 'all' && (
-            <p className="mt-1 text-sm text-blue-600 font-semibold">
-              учебный год {selectedSchoolYear}
-            </p>
-          )}
-        </div>
-        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
-          <div className="flex gap-3 items-center">
-            <div className="flex items-center gap-2">
-              <label htmlFor="schoolYear" className="text-sm font-medium text-gray-700">
+    <div>
+      {/* Заголовок и контролы */}
+      <div className="mb-6 no-print">
+        <div className="flex flex-col gap-4">
+          <div>
+            <h1 className="h1 mb-1">Группы</h1>
+            {selectedSchoolYear !== 'all' && (
+              <p className="text-sm text-blue-600 font-semibold">
+                учебный год {selectedSchoolYear}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+              <label htmlFor="schoolYear" className="text-sm font-medium text-heading whitespace-nowrap">
                 Учебный год:
               </label>
-                          <select
-                            id="schoolYear"
-                            value={selectedSchoolYear}
-                            onChange={(e) => setSelectedSchoolYear(e.target.value)}
-                            className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white text-heading px-3 py-2 border text-sm"
-                          >
-                            <option value="all">Все годы</option>
-                            {schoolYearOptions.map((year) => (
-                              <option key={year} value={year}>
-                                {year}
-                              </option>
-                            ))}
-                          </select>
+              <select
+                id="schoolYear"
+                value={selectedSchoolYear}
+                onChange={(e) => setSelectedSchoolYear(e.target.value)}
+                className="flex-1 sm:flex-initial rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white text-heading px-3 py-2 border text-sm min-w-[140px]"
+              >
+                <option value="all">Все годы</option>
+                {schoolYearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
             </div>
             <Button
               onClick={() => {
                 setShowAddForm(!showAddForm)
                 if (!showAddForm) {
                   const defaultYear = selectedSchoolYear === 'all' 
-                    ? getCurrentSchoolYear() // Используем текущий учебный год
+                    ? getCurrentSchoolYear()
                     : selectedSchoolYear
                   setFormData({ 
                     name: '', 
                     description: '', 
                     schoolYear: defaultYear
                   })
-                  setDetectedClass(null) // Сбрасываем определенный класс при открытии формы
+                  setDetectedClass(null)
                 } else {
-                  // При закрытии формы сбрасываем на текущий учебный год
                   setFormData({ 
                     name: '', 
                     description: '', 
@@ -219,44 +233,54 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
                 }
               }}
               variant={showAddForm ? 'secondary' : 'primary'}
+              className="w-full sm:w-auto"
             >
               {showAddForm ? 'Отмена' : 'Добавить группу'}
             </Button>
           </div>
         </div>
+      </div>
 
         {error && (
-          <Alert variant="danger" className="mb-4">
-            {error}
-          </Alert>
+          <Alert variant="error" message={error} className="mb-4" />
         )}
 
         {showAddForm && (
           <Card className="mb-6">
-            <h3 className="text-lg font-semibold text-heading mb-4">
+            <h3 className="h3 mb-4">
               Добавить группу
             </h3>
             <form onSubmit={handleAddGroup} className="space-y-4">
               <Select
                 label="Учебный год"
                 required
+                error={fieldErrors.schoolYear}
                 options={schoolYearOptions.map((year) => ({ value: year, label: year }))}
                 value={formData.schoolYear}
-                onChange={(e) =>
+                onChange={(e) => {
                   setFormData({ ...formData, schoolYear: e.target.value })
-                }
+                  if (fieldErrors.schoolYear) {
+                    setFieldErrors({ ...fieldErrors, schoolYear: undefined })
+                  }
+                }}
+                disabled={submitting}
               />
               <Input
                 label="Название группы"
                 type="text"
                 required
+                error={fieldErrors.name}
                 value={formData.name}
                 onChange={(e) => {
                   const newName = e.target.value
                   setFormData({ ...formData, name: newName })
                   setDetectedClass(extractClassFromGroupName(newName))
+                  if (fieldErrors.name) {
+                    setFieldErrors({ ...fieldErrors, name: undefined })
+                  }
                 }}
                 placeholder="Например: 2 А, 3 Б, 5 Г"
+                disabled={submitting}
               />
               {/* Информация об автоматическом определении класса */}
               {detectedClass !== null ? (
@@ -286,8 +310,14 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
                   setFormData({ ...formData, description: e.target.value })
                 }
               />
-              <Button type="submit" variant="primary">
-                Создать
+              <Button 
+                type="submit" 
+                variant="primary"
+                isLoading={submitting}
+                disabled={submitting}
+                className="w-full sm:w-auto"
+              >
+                {submitting ? 'Создание...' : 'Создать'}
               </Button>
             </form>
           </Card>
@@ -321,8 +351,33 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
 
             if (groups.length === 0) {
               return (
-                <div className="col-span-full bg-white shadow rounded-lg p-6">
-                  <p className="text-center text-gray-500">Нет групп</p>
+                <div className="col-span-full">
+                  <Card className="text-center py-12">
+                    <h3 className="text-lg font-semibold text-heading mb-2">
+                      Групп пока нет
+                    </h3>
+                    <p className="text-secondary mb-6 max-w-md mx-auto">
+                      {selectedSchoolYear === 'all' 
+                        ? 'Для начала работы создайте группу учащихся.'
+                        : `Для учебного года ${selectedSchoolYear} ещё не создано ни одной группы.`
+                      }
+                    </p>
+                    <Button
+                      onClick={() => {
+                        setShowAddForm(true)
+                        if (selectedSchoolYear !== 'all') {
+                          setFormData({ 
+                            name: '', 
+                            description: '', 
+                            schoolYear: selectedSchoolYear
+                          })
+                        }
+                      }}
+                      variant="primary"
+                    >
+                      Добавить группу
+                    </Button>
+                  </Card>
                 </div>
               )
             }
@@ -330,51 +385,22 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
             return (
               <div className="space-y-6">
                 {trainerGroups.map((trainerGroup) => (
-                  <div key={trainerGroup.trainerId} className="space-y-3">
-                    <h3 className="text-lg font-semibold text-heading mb-2">
+                  <div key={trainerGroup.trainerId} className="space-y-4">
+                    <h3 className="h3">
                       Тренер: {trainerGroup.trainerName}
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                       {trainerGroup.groups.map((group) => (
-                        <div
+                        <GroupCard
                           key={group.id}
-                          className="bg-white shadow rounded-lg p-6 border border-gray-200 hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex justify-between items-start mb-4">
-                            <div>
-                              <h3 className="text-lg font-semibold text-heading">
-                                {group.name}
-                              </h3>
-                              <p className="text-xs text-indigo-600 font-medium mt-1">
-                                {group.schoolYear}
-                              </p>
-                              {group.description && (
-                                <p className="text-sm text-gray-500 mt-1">
-                                  {group.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-                            <span>Учащихся: {group._count.athletes}</span>
-                            <span>Уроков: {group._count.lessons}</span>
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button
-                              onClick={() => router.push(`/trainer/groups/${group.id}`)}
-                              variant="primary"
-                              className="flex-1"
-                            >
-                              Открыть
-                            </Button>
-                            <Button
-                              onClick={() => handleDeleteGroup(group.id)}
-                              variant="danger"
-                            >
-                              Удалить
-                            </Button>
-                          </div>
-                        </div>
+                          name={group.name}
+                          schoolYear={group.schoolYear}
+                          schoolName={group.description}
+                          studentsCount={group._count.athletes}
+                          lessonsCount={group._count.lessons}
+                          onOpen={() => router.push(`/trainer/groups/${group.id}`)}
+                          onDelete={() => handleDeleteGroup(group.id)}
+                        />
                       ))}
                     </div>
                   </div>
@@ -384,59 +410,54 @@ export default function GroupsPage({ userFullName, userRole }: { userFullName?: 
           }
 
           // Для TRAINER показываем как обычно (без группировки)
+          if (groups.length === 0) {
+            return (
+              <Card className="text-center py-12">
+                <h3 className="text-lg font-semibold text-heading mb-2">
+                  Групп пока нет
+                </h3>
+                <p className="text-secondary mb-6 max-w-md mx-auto">
+                  {selectedSchoolYear === 'all' 
+                    ? 'Для начала работы создайте группу учащихся.'
+                    : `Для учебного года ${selectedSchoolYear} ещё не создано ни одной группы.`
+                  }
+                </p>
+                <Button
+                  onClick={() => {
+                    setShowAddForm(true)
+                    if (selectedSchoolYear !== 'all') {
+                      setFormData({ 
+                        name: '', 
+                        description: '', 
+                        schoolYear: selectedSchoolYear
+                      })
+                    }
+                  }}
+                  variant="primary"
+                >
+                  Добавить группу
+                </Button>
+              </Card>
+            )
+          }
+
           return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {groups.length === 0 ? (
-                <div className="col-span-full bg-white shadow rounded-lg p-6">
-                  <p className="text-center text-gray-500">Нет групп</p>
-                </div>
-              ) : (
-                groups.map((group) => (
-                  <div
-                    key={group.id}
-                    className="bg-white shadow rounded-lg p-6 border border-gray-200 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-lg font-semibold text-heading">
-                          {group.name}
-                        </h3>
-                        <p className="text-xs text-indigo-600 font-medium mt-1">
-                          {group.schoolYear}
-                        </p>
-                        {group.description && (
-                          <p className="text-sm text-gray-500 mt-1">
-                            {group.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-                      <span>Учащихся: {group._count.athletes}</span>
-                      <span>Уроков: {group._count.lessons}</span>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        onClick={() => router.push(`/trainer/groups/${group.id}`)}
-                        variant="primary"
-                        className="flex-1"
-                      >
-                        Открыть
-                      </Button>
-                      <Button
-                        onClick={() => handleDeleteGroup(group.id)}
-                        variant="danger"
-                      >
-                        Удалить
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {groups.map((group) => (
+                <GroupCard
+                  key={group.id}
+                  name={group.name}
+                  schoolYear={group.schoolYear}
+                  schoolName={group.description}
+                  studentsCount={group._count.athletes}
+                  lessonsCount={group._count.lessons}
+                  onOpen={() => router.push(`/trainer/groups/${group.id}`)}
+                  onDelete={() => handleDeleteGroup(group.id)}
+                />
+              ))}
             </div>
           )
         })()}
-      </main>
     </div>
   )
 }
