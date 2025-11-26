@@ -66,6 +66,9 @@ export async function GET(
       where: { id: groupId },
       select: {
         athletes: {
+          where: {
+            isActive: true, // Только активные ученики
+          },
           select: {
             id: true,
             gender: true,
@@ -235,7 +238,11 @@ export async function POST(
             trainerId: profile.id,
           },
       include: {
-        athletes: true,
+        athletes: {
+          where: {
+            isActive: true, // Только активные ученики
+          },
+        },
       },
     })
 

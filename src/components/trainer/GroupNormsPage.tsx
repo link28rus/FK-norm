@@ -384,7 +384,7 @@ export default function GroupNormsPage({
                         </div>
                       </TableCell>
                       <TableCell align="right">
-                        <div className="flex justify-end gap-2 flex-wrap">
+                        <div className="flex items-center justify-end gap-2">
                           <Button
                             onClick={() => {
                               if (normGroup.isFromTemplate && normGroup.groupNormId) {

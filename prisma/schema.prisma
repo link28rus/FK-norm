@@ -81,7 +81,9 @@ model Athlete {
   birthDate  DateTime?
   gender     String?
   notes      String?
+  uinGto     String?   @db.VarChar(20) // УИН ГТО в формате 00-00-0000000, опционально
   schoolYear String    @default("2024/2025") // Должен совпадать с годом группы
+  isActive   Boolean   @default(true) // Soft delete: false означает, что ученик удалён из системы
   createdAt  DateTime  @default(now())
 
   group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -104,7 +106,7 @@ model Norm {
   templateId  String? // Связь с шаблоном норматива
   groupNormId String? // Связь с групповым нормативом
 
-  athlete   Athlete       @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  athlete   Athlete       @relation(fields: [athleteId], references: [id], onDelete: Restrict)
   template  NormTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   groupNorm GroupNorm?    @relation(fields: [groupNormId], references: [id], onDelete: SetNull)
 

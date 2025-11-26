@@ -15,6 +15,7 @@ interface EditAthleteModalProps {
   athleteBirthDate?: string | null
   athleteGender?: string | null
   athleteNotes?: string | null
+  athleteUinGto?: string | null
   athleteGroupId: string
   athleteSchoolYear: string
   isOpen: boolean
@@ -28,6 +29,7 @@ export default function EditAthleteModal({
   athleteBirthDate,
   athleteGender,
   athleteNotes,
+  athleteUinGto,
   athleteGroupId,
   athleteSchoolYear,
   isOpen,
@@ -45,6 +47,7 @@ export default function EditAthleteModal({
   )
   const [gender, setGender] = useState(athleteGender || '')
   const [notes, setNotes] = useState(athleteNotes || '')
+  const [uinGto, setUinGto] = useState(athleteUinGto || '')
   const [groupId, setGroupId] = useState(athleteGroupId)
 
   // Инициализируем данные при открытии модального окна
@@ -56,11 +59,12 @@ export default function EditAthleteModal({
       )
       setGender(athleteGender || '')
       setNotes(athleteNotes || '')
+      setUinGto(athleteUinGto || '')
       setGroupId(athleteGroupId)
       setError('')
       loadGroups()
     }
-  }, [isOpen, athleteFullName, athleteBirthDate, athleteGender, athleteNotes, athleteGroupId])
+  }, [isOpen, athleteFullName, athleteBirthDate, athleteGender, athleteNotes, athleteUinGto, athleteGroupId])
 
   const loadGroups = async () => {
     setLoadingGroups(true)
@@ -98,6 +102,7 @@ export default function EditAthleteModal({
           birthDate: birthDate || null,
           gender: gender || null,
           notes: notes.trim() || null,
+          uinGto: uinGto.trim() || null,
           groupId: groupId,
         }),
       })
@@ -190,6 +195,30 @@ export default function EditAthleteModal({
                     <option value="М">Мужской</option>
                     <option value="Ж">Женский</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-1">
+                    УИН ГТО
+                  </label>
+                  <input
+                    type="text"
+                    name="uinGto"
+                    value={uinGto ?? ""}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/\D/g, ""); // только цифры
+                      
+                      // автоформатирование в формат 00-00-0000000
+                      if (v.length > 2) v = v.slice(0, 2) + "-" + v.slice(2);
+                      if (v.length > 5) v = v.slice(0, 5) + "-" + v.slice(5);
+                      if (v.length > 13) v = v.slice(0, 13);
+                      
+                      setUinGto(v);
+                    }}
+                    placeholder="00-00-0000000"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white text-gray-900 px-3 py-2 border"
+                    disabled={loading}
+                  />
                 </div>
 
                 <div>

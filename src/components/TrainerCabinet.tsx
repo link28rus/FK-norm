@@ -67,6 +67,7 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
     gender: '',
     groupName: '',
     notes: '',
+    uinGto: '',
   })
 
   const [normForm, setNormForm] = useState({
@@ -221,6 +222,7 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
         gender: '',
         groupName: '',
         notes: '',
+        uinGto: '',
       })
       loadAthletes()
       // Если мы на странице группы, остаёмся на ней
@@ -701,6 +703,28 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
                       readOnly
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-50 text-gray-600 px-3 py-2 border"
                       value={selectedGroup}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">
+                      УИН ГТО
+                    </label>
+                    <input
+                      type="text"
+                      name="uinGto"
+                      value={athleteForm.uinGto ?? ""}
+                      onChange={(e) => {
+                        let v = e.target.value.replace(/\D/g, ""); // только цифры
+                        
+                        // автоформатирование в формат 00-00-0000000
+                        if (v.length > 2) v = v.slice(0, 2) + "-" + v.slice(2);
+                        if (v.length > 5) v = v.slice(0, 5) + "-" + v.slice(5);
+                        if (v.length > 13) v = v.slice(0, 13);
+                        
+                        setAthleteForm({ ...athleteForm, uinGto: v });
+                      }}
+                      placeholder="00-00-0000000"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white text-gray-900 px-3 py-2 border"
                     />
                   </div>
                   <div>

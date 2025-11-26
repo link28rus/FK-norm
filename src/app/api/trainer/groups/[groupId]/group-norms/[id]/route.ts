@@ -62,6 +62,9 @@ export async function GET(
             name: true,
             class: true, // Важно: обязательно получаем класс группы
             athletes: {
+              where: {
+                isActive: true, // Только активные ученики
+              },
               select: {
                 id: true,
                 fullName: true,

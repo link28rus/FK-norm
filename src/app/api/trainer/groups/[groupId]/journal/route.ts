@@ -172,7 +172,10 @@ export async function GET(
       
       try {
         athletes = await prisma.athlete.findMany({
-          where: { groupId: groupId },
+          where: { 
+            groupId: groupId,
+            isActive: true, // Только активные ученики
+          },
           orderBy: { fullName: 'asc' },
         })
         console.log('[Journal GET] ✓ Athletes found:', athletes.length)

@@ -39,7 +39,10 @@ export async function GET(request: NextRequest) {
     }
     
     const athletes = await prisma.athlete.findMany({
-      where: { groupId: { in: groupIds } },
+      where: { 
+        groupId: { in: groupIds },
+        isActive: true, // Только активные ученики
+      },
       include: {
         group: {
           select: {
@@ -58,6 +61,7 @@ export async function GET(request: NextRequest) {
       gender: athlete.gender,
       groupName: athlete.group?.name || null,
       notes: athlete.notes,
+      uinGto: athlete.uinGto,
       createdAt: athlete.createdAt.toISOString(),
     }))
 
@@ -95,11 +99,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { fullName, birthDate, gender, groupId, notes } = body
+    const { fullName, birthDate, gender, groupId, notes, uinGto } = body
 
     if (!fullName || !groupId) {
       return NextResponse.json(
         { error: 'ФИО и группа обязательны' },
+        { status: 400 }
+      )
+    }
+
+    // Валидация УИН ГТО: должен быть в формате 00-00-0000000
+    if (uinGto && !/^\d{2}-\d{2}-\d{7}$/.test(uinGto)) {
+      return NextResponse.json(
+        { error: 'УИН ГТО должен быть в формате 00-00-0000000' },
         { status: 400 }
       )
     }
@@ -126,6 +138,8 @@ export async function POST(request: NextRequest) {
         birthDate: birthDate ? new Date(birthDate) : null,
         gender: gender || null,
         notes: notes || null,
+        uinGto: uinGto && uinGto.trim() !== '' ? uinGto.trim() : null,
+        schoolYear: group.schoolYear,
       },
     })
 

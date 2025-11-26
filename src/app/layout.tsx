@@ -5,6 +5,11 @@ import { ToastProvider } from '@/components/ui/Toast'
 export const metadata: Metadata = {
   title: 'Учёт нормативов по ФК',
   description: 'Система учёта сдачи нормативов по физической культуре',
+  icons: {
+    icon: [
+      { url: '/favicon-16.svg', sizes: '16x16', type: 'image/svg+xml' }
+    ],
+  },
 }
 
 export default function RootLayout({

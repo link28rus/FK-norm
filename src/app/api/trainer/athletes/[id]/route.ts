@@ -126,11 +126,19 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { fullName, birthDate, gender, notes, groupId } = body
+    const { fullName, birthDate, gender, notes, groupId, uinGto } = body
 
     if (!fullName || fullName.trim() === '') {
       return NextResponse.json(
         { error: 'ФИО обязательно' },
+        { status: 400 }
+      )
+    }
+
+    // Валидация УИН ГТО: должен быть в формате 00-00-0000000
+    if (uinGto && !/^\d{2}-\d{2}-\d{7}$/.test(uinGto)) {
+      return NextResponse.json(
+        { error: 'УИН ГТО должен быть в формате 00-00-0000000' },
         { status: 400 }
       )
     }
@@ -160,6 +168,7 @@ export async function PUT(
         birthDate: birthDate ? new Date(birthDate) : null,
         gender: gender || null,
         notes: notes || null,
+        uinGto: uinGto && uinGto.trim() !== '' ? uinGto.trim() : null,
         groupId: groupId,
         schoolYear: newGroup.schoolYear,
       }
@@ -188,6 +197,7 @@ export async function PUT(
         birthDate: birthDate ? new Date(birthDate) : null,
         gender: gender || null,
         notes: notes || null,
+        uinGto: uinGto && uinGto.trim() !== '' ? uinGto.trim() : null,
       },
       include: {
         group: {
@@ -252,8 +262,10 @@ export async function DELETE(
       )
     }
 
-    await prisma.athlete.delete({
+    // Soft delete: помечаем ученика как неактивного вместо физического удаления
+    await prisma.athlete.update({
       where: { id: params.id },
+      data: { isActive: false },
     })
 
     return NextResponse.json({ success: true })

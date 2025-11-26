@@ -64,6 +64,7 @@ export async function GET(
       where: {
         athlete: {
           groupId: params.groupId,
+          isActive: true, // Только активные ученики
         },
         groupNormId: null, // Исключаем нормативы из шаблонов (они отображаются отдельно)
       },

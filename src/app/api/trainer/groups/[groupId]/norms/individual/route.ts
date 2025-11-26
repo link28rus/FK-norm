@@ -48,6 +48,7 @@ export async function GET(
       where: {
         athlete: {
           groupId: params.groupId,
+          isActive: true, // Только активные ученики
         },
         normType: 'INDIVIDUAL', // Только индивидуальные нормативы
       },

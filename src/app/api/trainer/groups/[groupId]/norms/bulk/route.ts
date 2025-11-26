@@ -59,6 +59,7 @@ export async function POST(
       where: {
         id: { in: athleteIds },
         groupId: params.groupId,
+        isActive: true, // Только активные ученики
       },
     })
 

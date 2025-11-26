@@ -11,6 +11,7 @@ interface Athlete {
   birthDate?: string
   gender?: string
   notes?: string
+  uinGto?: string | null
   groupId: string
   schoolYear?: string
   group?: {
@@ -257,6 +258,12 @@ export default function AthleteDetailPage({
                 <dd className="text-sm text-heading">{athlete.group.name}</dd>
               </div>
             )}
+            {athlete.uinGto && (
+              <div className="flex flex-col sm:flex-row sm:items-start">
+                <dt className="text-sm font-medium text-secondary w-full sm:w-32 flex-shrink-0 mb-1 sm:mb-0">УИН ГТО</dt>
+                <dd className="text-sm text-heading">{athlete.uinGto}</dd>
+              </div>
+            )}
             {athlete.notes && (
               <div className="flex flex-col sm:flex-row sm:items-start pt-2 border-t border-gray-200">
                 <dt className="text-sm font-medium text-secondary w-full sm:w-32 flex-shrink-0 mb-1 sm:mb-0">Примечания</dt>
@@ -475,6 +482,7 @@ export default function AthleteDetailPage({
           athleteBirthDate={athlete.birthDate}
           athleteGender={athlete.gender}
           athleteNotes={athlete.notes}
+          athleteUinGto={athlete.uinGto}
           athleteGroupId={athlete.groupId}
           athleteSchoolYear={athlete.group?.schoolYear || athlete.schoolYear || '2024/2025'}
           isOpen={showEditModal}

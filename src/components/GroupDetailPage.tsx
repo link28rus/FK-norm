@@ -19,6 +19,7 @@ interface Athlete {
   birthDate?: string
   gender?: string
   notes?: string
+  uinGto?: string | null
 }
 
 export default function GroupDetailPage({
@@ -42,6 +43,7 @@ export default function GroupDetailPage({
     birthDate: '',
     gender: '',
     notes: '',
+    uinGto: '',
   })
   const [submittingAthlete, setSubmittingAthlete] = useState(false)
   const [athleteFieldErrors, setAthleteFieldErrors] = useState<{ fullName?: string; gender?: string }>({})
@@ -112,7 +114,7 @@ export default function GroupDetailPage({
       }
 
       setShowAddForm(false)
-      setFormData({ fullName: '', birthDate: '', gender: '', notes: '' })
+      setFormData({ fullName: '', birthDate: '', gender: '', notes: '', uinGto: '' })
       setSubmittingAthlete(false)
       toast.success('Ученик успешно добавлен!')
       loadAthletes()
@@ -307,6 +309,29 @@ export default function GroupDetailPage({
                         setAthleteFieldErrors({ ...athleteFieldErrors, gender: undefined })
                       }
                     }}
+                    disabled={submittingAthlete}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    УИН ГТО
+                  </label>
+                  <input
+                    type="text"
+                    name="uinGto"
+                    value={formData.uinGto ?? ""}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/\D/g, ""); // только цифры
+                      
+                      // автоформатирование в формат 00-00-0000000
+                      if (v.length > 2) v = v.slice(0, 2) + "-" + v.slice(2);
+                      if (v.length > 5) v = v.slice(0, 5) + "-" + v.slice(5);
+                      if (v.length > 13) v = v.slice(0, 13);
+                      
+                      setFormData({ ...formData, uinGto: v });
+                    }}
+                    placeholder="00-00-0000000"
+                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     disabled={submittingAthlete}
                   />
                 </div>
