@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { calcGrade, gradeToString } from '@/lib/normCalculator'
-import { convertGenderToEnglish } from '@/lib/genderConverter'
 import { Button } from '@/components/ui'
 
 interface Athlete {
@@ -18,11 +16,16 @@ interface GroupNormData {
   nameOverride?: string | null
   unitOverride?: string | null
   useCustomBoundaries: boolean
+  period?: 'START_OF_YEAR' | 'END_OF_YEAR' | 'REGULAR'
+  applicableGender?: 'ALL' | 'MALE' | 'FEMALE'
   template: {
     id: string
     name: string
     unit: string
     direction: string
+    classFrom?: number | null
+    classTo?: number | null
+    applicableGender?: 'ALL' | 'MALE' | 'FEMALE'
   }
   boundaries?: Array<{
     grade: number
@@ -32,6 +35,8 @@ interface GroupNormData {
     toValue: number
   }>
   group: {
+    id: string
+    name: string
     class: number | null
     athletes: Athlete[]
   }
@@ -56,6 +61,17 @@ interface EditGroupNormFromTemplateModalProps {
   onSuccess: () => void
 }
 
+interface NormItem {
+  athleteId: string
+  athleteName: string
+  gender: string | null
+  value: number | null
+  grade: string
+  calculating: boolean
+  saving: boolean
+  error: string | null
+}
+
 export default function EditGroupNormFromTemplateModal({
   groupId,
   groupNormId,
@@ -67,16 +83,7 @@ export default function EditGroupNormFromTemplateModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [groupNorm, setGroupNorm] = useState<GroupNormData | null>(null)
-  const [norms, setNorms] = useState<Array<{
-    athleteId: string
-    athleteName: string
-    gender: string | null
-    value: number | null
-    grade: string
-    calculating: boolean
-    saving: boolean
-    error: string | null
-  }>>([])
+  const [norms, setNorms] = useState<NormItem[]>([])
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({})
   const savingAthletes = useRef<Set<string>>(new Set())
 
@@ -89,6 +96,7 @@ export default function EditGroupNormFromTemplateModal({
   const loadGroupNorm = async () => {
     try {
       setLoading(true)
+      setError('')
       const response = await fetch(`/api/trainer/groups/${groupId}/group-norms/${groupNormId}`)
       if (!response.ok) throw new Error('Ошибка загрузки')
       const data = await response.json()
@@ -123,12 +131,8 @@ export default function EditGroupNormFromTemplateModal({
         setError('Не удалось определить класс группы. В названии группы отсутствует цифра. Укажите цифру школьного класса в названии, например: "2 А", "3 Б", "5 Г". Без корректного класса автоматический расчёт оценок по нормативам работать не сможет.')
       }
 
-      // Инициализируем нормы для всех учащихся группы
-      const athletesMap = new Map(
-        groupNormData.group.athletes.map((a: Athlete) => [a.id, a])
-      )
-
-      // Создаем массив норм для всех учащихся
+      // API уже отфильтровал учеников по applicableGender, поэтому используем только тех, что в ответе
+      // Создаем массив норм для всех учеников из ответа
       const normsList = groupNormData.group.athletes.map((athlete: Athlete) => {
         const existingNorm = groupNormData.norms.find(
           (n: any) => n.athleteId === athlete.id
@@ -150,8 +154,7 @@ export default function EditGroupNormFromTemplateModal({
         athletesCount: groupNormData.group.athletes.length,
         existingNormsCount: groupNormData.norms.length,
         normsListCount: normsList.length,
-        sampleNorm: normsList[0],
-        sampleAthlete: groupNormData.group.athletes[0],
+        applicableGender: groupNormData.applicableGender ?? groupNormData.template?.applicableGender ?? 'ALL',
       })
 
       setNorms(normsList)
@@ -162,33 +165,6 @@ export default function EditGroupNormFromTemplateModal({
       setLoading(false)
     }
   }
-
-  // Автосохранение результата и пересчет оценки
-  const autoSaveResult = useCallback(async (
-    athleteId: string,
-    value: number | null,
-    immediate: boolean = false
-  ) => {
-    if (!groupNorm) return
-
-    // Если уже сохраняем этого ученика, отменяем предыдущий таймер
-    if (debounceTimers.current[athleteId]) {
-      clearTimeout(debounceTimers.current[athleteId])
-      delete debounceTimers.current[athleteId]
-    }
-
-    // Если немедленное сохранение (onBlur), не используем debounce
-    if (immediate) {
-      performSave(athleteId, value)
-      return
-    }
-
-    // Используем debounce 600ms
-    debounceTimers.current[athleteId] = setTimeout(() => {
-      performSave(athleteId, value)
-      delete debounceTimers.current[athleteId]
-    }, 600)
-  }, [groupNorm, groupId, groupNormId])
 
   // Функция выполнения сохранения
   const performSave = useCallback(async (athleteId: string, value: number | null) => {
@@ -284,6 +260,33 @@ export default function EditGroupNormFromTemplateModal({
     }
   }, [groupId, groupNormId, groupNorm])
 
+  // Автосохранение результата и пересчет оценки
+  const autoSaveResult = useCallback(async (
+    athleteId: string,
+    value: number | null,
+    immediate: boolean = false
+  ) => {
+    if (!groupNorm) return
+
+    // Если уже сохраняем этого ученика, отменяем предыдущий таймер
+    if (debounceTimers.current[athleteId]) {
+      clearTimeout(debounceTimers.current[athleteId])
+      delete debounceTimers.current[athleteId]
+    }
+
+    // Если немедленное сохранение (onBlur), не используем debounce
+    if (immediate) {
+      performSave(athleteId, value)
+      return
+    }
+
+    // Используем debounce 600ms
+    debounceTimers.current[athleteId] = setTimeout(() => {
+      performSave(athleteId, value)
+      delete debounceTimers.current[athleteId]
+    }, 600)
+  }, [groupNorm, performSave])
+
   // Обработчик изменения значения (с debounce)
   const handleValueChange = useCallback((
     athleteId: string,
@@ -377,18 +380,6 @@ export default function EditGroupNormFromTemplateModal({
       await new Promise(resolve => setTimeout(resolve, 100))
     }
 
-    // Подготавливаем данные для отправки (все актуальные значения и оценки)
-    const normsToSave = norms.map(n => ({
-      athleteId: n.athleteId,
-      value: n.value,
-      status: n.grade && n.grade !== '-' ? n.grade : undefined,
-    }))
-
-    console.log('[EditGroupNormFromTemplateModal] Final submit (results are already saved):', {
-      groupNormId,
-      normsCount: normsToSave.length,
-    })
-
     // Все результаты уже сохранены через автосохранение
     // Эта кнопка нужна только для финального подтверждения/закрытия модалки
     try {
@@ -430,8 +421,10 @@ export default function EditGroupNormFromTemplateModal({
 
   const gradeCycle = ['-', '2', '3', '4', '5', 'Б', 'О']
 
+  // Ранний выход, если модалка не открыта
   if (!isOpen) return null
 
+  // Состояние загрузки
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -442,9 +435,18 @@ export default function EditGroupNormFromTemplateModal({
     )
   }
 
+  // Если данные не загружены, не показываем модалку
   if (!groupNorm) {
     return null
   }
+
+  // Получаем applicableGender для текущего норматива
+  // Сначала из самого группового норматива, иначе из связанного шаблона, иначе по умолчанию 'ALL'
+  const applicableGenderValue =
+    groupNorm?.applicableGender ??
+    groupNorm?.template?.applicableGender ??
+    'ALL'
+  const applicableGender = String(applicableGenderValue) as 'ALL' | 'MALE' | 'FEMALE'
 
   const normName = groupNorm.nameOverride || groupNorm.template.name
   const normUnit = groupNorm.unitOverride || groupNorm.template.unit
@@ -467,6 +469,11 @@ export default function EditGroupNormFromTemplateModal({
                   <p className="text-sm text-gray-500 mt-1">
                     Дата зачёта: {new Date(groupNorm.testDate).toLocaleDateString('ru-RU')}
                     {normUnit && ` • Единица: ${normUnit}`}
+                    {groupNorm.period && groupNorm.period !== 'REGULAR' && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                        {groupNorm.period === 'START_OF_YEAR' ? 'Начало года' : 'Конец года'}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <button
@@ -497,6 +504,27 @@ export default function EditGroupNormFromTemplateModal({
                 </div>
               )}
 
+              {/* Подсказка о фильтрации по полу */}
+              {applicableGender !== 'ALL' && (
+                <div className="mb-4">
+                  <p className="text-xs text-gray-500">
+                    {applicableGender === 'MALE' 
+                      ? 'Норматив сдают только мальчики. Девочки исключены из списка.'
+                      : 'Норматив сдают только девочки. Мальчики исключены из списка.'
+                    }
+                  </p>
+                </div>
+              )}
+
+              {/* Сообщение о пустом списке после фильтрации */}
+              {norms.length === 0 && (
+                <div className="mb-4 bg-gray-50 border border-gray-200 rounded-md p-4 text-center">
+                  <p className="text-sm text-gray-600">
+                    Нет учеников, которые могут сдавать этот норматив.
+                  </p>
+                </div>
+              )}
+
               {!groupNorm.group.class ? (
                 <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-md p-3">
                   <p className="text-sm text-yellow-800">
@@ -523,102 +551,104 @@ export default function EditGroupNormFromTemplateModal({
                 </p>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Учащийся
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Пол
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Результат
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Оценка
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {norms.map((norm) => (
-                      <tr key={norm.athleteId}>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {norm.athleteName}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {norm.gender === 'М' || norm.gender === 'MALE' ? 'М' : norm.gender === 'Ж' || norm.gender === 'FEMALE' ? 'Ж' : '—'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <div className="relative flex-1 max-w-32">
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={norm.value || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value === '' ? null : parseFloat(e.target.value)
-                                  handleValueChange(norm.athleteId, val)
-                                }}
-                                onBlur={(e) => {
-                                  const val = e.target.value === '' ? null : parseFloat(e.target.value)
-                                  handleValueBlur(norm.athleteId, val)
-                                }}
-                                placeholder="Введите результат"
-                                className={`w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm ${
-                                  norm.error
-                                    ? 'border-red-300 bg-red-50'
-                                    : norm.saving
-                                    ? 'border-blue-300 bg-blue-50'
-                                    : 'border-gray-300'
-                                }`}
-                              />
-                              {/* Индикация сохранения */}
+              {norms.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Учащийся
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Пол
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Результат
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Оценка
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {norms.map((norm) => (
+                        <tr key={norm.athleteId}>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {norm.athleteName}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                            {norm.gender === 'М' || norm.gender === 'MALE' ? 'М' : norm.gender === 'Ж' || norm.gender === 'FEMALE' ? 'Ж' : '—'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <div className="relative flex-1 max-w-32">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={norm.value || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value === '' ? null : parseFloat(e.target.value)
+                                    handleValueChange(norm.athleteId, val)
+                                  }}
+                                  onBlur={(e) => {
+                                    const val = e.target.value === '' ? null : parseFloat(e.target.value)
+                                    handleValueBlur(norm.athleteId, val)
+                                  }}
+                                  placeholder="Введите результат"
+                                  className={`w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm ${
+                                    norm.error
+                                      ? 'border-red-300 bg-red-50'
+                                      : norm.saving
+                                      ? 'border-blue-300 bg-blue-50'
+                                      : 'border-gray-300'
+                                  }`}
+                                />
+                                {/* Индикация сохранения */}
+                                {norm.saving && (
+                                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                  </div>
+                                )}
+                                {norm.error && !norm.saving && (
+                                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                                    <span className="text-red-500 text-xs">⚠</span>
+                                  </div>
+                                )}
+                              </div>
                               {norm.saving && (
-                                <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                                </div>
+                                <span className="text-xs text-blue-600" title="Сохранение...">
+                                  💾
+                                </span>
                               )}
                               {norm.error && !norm.saving && (
-                                <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                                  <span className="text-red-500 text-xs">⚠</span>
-                                </div>
+                                <span className="text-xs text-red-600" title={norm.error}>
+                                  ⚠
+                                </span>
                               )}
                             </div>
-                            {norm.saving && (
-                              <span className="text-xs text-blue-600" title="Сохранение...">
-                                💾
-                              </span>
-                            )}
                             {norm.error && !norm.saving && (
-                              <span className="text-xs text-red-600" title={norm.error}>
-                                ⚠
-                              </span>
+                              <p className="mt-1 text-xs text-red-600">{norm.error}</p>
                             )}
-                          </div>
-                          {norm.error && !norm.saving && (
-                            <p className="mt-1 text-xs text-red-600">{norm.error}</p>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-center">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const currentIndex = gradeCycle.indexOf(norm.grade || '-')
-                              const nextIndex = (currentIndex + 1) % gradeCycle.length
-                              handleGradeChange(norm.athleteId, gradeCycle[nextIndex])
-                            }}
-                            className={`px-3 py-1 rounded border text-sm font-medium transition-colors ${getGradeColorClass(norm.grade)}`}
-                          >
-                            {norm.grade || '—'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentIndex = gradeCycle.indexOf(norm.grade || '-')
+                                const nextIndex = (currentIndex + 1) % gradeCycle.length
+                                handleGradeChange(norm.athleteId, gradeCycle[nextIndex])
+                              }}
+                              className={`px-3 py-1 rounded border text-sm font-medium transition-colors ${getGradeColorClass(norm.grade)}`}
+                            >
+                              {norm.grade || '—'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
             </div>
             <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-3">
               <Button
@@ -646,4 +676,3 @@ export default function EditGroupNormFromTemplateModal({
     </div>
   )
 }
-

@@ -89,7 +89,7 @@ export async function GET(
       ]
     }
 
-    // Если у группы указан класс, добавляем фильтр по классу
+    // Если у группы указан класс, добавляем фильтр по классу (строгое равенство)
     if (group.class !== null && group.class !== undefined) {
       if (whereClause.OR) {
         // Если есть OR условие, оборачиваем в AND
@@ -97,15 +97,15 @@ export async function GET(
           AND: [
             whereClause,
             {
-              classFrom: { lte: group.class },
-              classTo: { gte: group.class },
+              classFrom: group.class, // Строгое равенство
+              classTo: group.class,   // Строгое равенство
             },
           ],
         }
       } else {
         whereClause.AND = [
-          { classFrom: { lte: group.class } },
-          { classTo: { gte: group.class } },
+          { classFrom: group.class }, // Строгое равенство
+          { classTo: group.class },   // Строгое равенство
         ]
       }
     }

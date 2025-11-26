@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui'
+import { Button, Select, Alert } from '@/components/ui'
 
 interface NormTemplate {
   id: string
@@ -10,6 +10,7 @@ interface NormTemplate {
   classFrom: number
   classTo: number
   direction: string
+  applicableGender?: 'ALL' | 'MALE' | 'FEMALE'
   ownerTrainerId?: string | null
   isPublic: boolean
   ownerTrainer?: {
@@ -21,6 +22,7 @@ interface NormTemplate {
 interface CreateNormFromTemplateModalProps {
   groupId: string
   groupClass: number | null
+  groupName: string | null
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
@@ -29,6 +31,7 @@ interface CreateNormFromTemplateModalProps {
 export default function CreateNormFromTemplateModal({
   groupId,
   groupClass,
+  groupName,
   isOpen,
   onClose,
   onSuccess,
@@ -41,6 +44,7 @@ export default function CreateNormFromTemplateModal({
   const [nameOverride, setNameOverride] = useState('')
   const [unitOverride, setUnitOverride] = useState('')
   const [useCustomBoundaries, setUseCustomBoundaries] = useState(false)
+  const [period, setPeriod] = useState<'START_OF_YEAR' | 'END_OF_YEAR' | 'REGULAR'>('REGULAR')
 
   useEffect(() => {
     if (isOpen) {
@@ -59,7 +63,47 @@ export default function CreateNormFromTemplateModal({
     }
   }
 
-  const selectedTemplate = templates.find(t => t.id === selectedTemplateId)
+  // Вычисляем номер класса группы с fallback'ами
+  // Поля из Prisma schema:
+  // - Group.class: Int? - номер класса группы (2, 3, 4, ...)
+  const rawGroupClass = groupClass
+
+  let groupClassNumber: number | null = rawGroupClass ?? null
+
+  // Fallback: если нет явного числа, пробуем извлечь из названия группы
+  if (groupClassNumber == null && groupName && typeof groupName === 'string') {
+    const match = groupName.match(/\d+/)
+    if (match) {
+      groupClassNumber = Number(match[0])
+    }
+  }
+
+  // Предупреждение, если не удалось определить класс
+  if (groupClassNumber == null) {
+    console.warn('[CreateNormFromTemplateModal] Не удалось определить номер класса для группы:', {
+      groupId,
+      groupClass,
+      groupName,
+    })
+  }
+
+  // Фильтруем шаблоны по номеру класса (строгое равенство)
+  // Поля из Prisma schema:
+  // - NormTemplate.classFrom: Int - начальный класс
+  // - NormTemplate.classTo: Int - конечный класс
+  // Шаблон виден, если classFrom === classTo === groupClassNumber
+  let templatesForGroup = templates
+
+  if (groupClassNumber != null) {
+    templatesForGroup = templates.filter((t) => {
+      const from = t.classFrom
+      const to = t.classTo ?? t.classFrom
+      // Шаблон подходит, только если from == to == номер класса группы (строгое равенство)
+      return from === groupClassNumber && to === groupClassNumber
+    })
+  }
+
+  const selectedTemplate = templatesForGroup.find(t => t.id === selectedTemplateId)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,6 +127,7 @@ export default function CreateNormFromTemplateModal({
           unitOverride: unitOverride || null,
           useCustomBoundaries,
           boundaries: useCustomBoundaries ? [] : undefined, // TODO: добавить редактор границ
+          period, // Период норматива
         }),
       })
 
@@ -102,6 +147,7 @@ export default function CreateNormFromTemplateModal({
       setNameOverride('')
       setUnitOverride('')
       setUseCustomBoundaries(false)
+      setPeriod('REGULAR')
     } catch (err) {
       setError('Ошибка соединения с сервером')
     } finally {
@@ -150,9 +196,7 @@ export default function CreateNormFromTemplateModal({
               </div>
 
               {error && (
-                <div className="mb-4 rounded-md bg-red-50 p-4">
-                  <div className="text-sm text-red-800">{error}</div>
-                </div>
+                <Alert variant="error" message={error} className="mb-4" />
               )}
 
               <div className="space-y-4">
@@ -165,31 +209,93 @@ export default function CreateNormFromTemplateModal({
                     value={selectedTemplateId}
                     onChange={(e) => {
                       setSelectedTemplateId(e.target.value)
-                      const template = templates.find(t => t.id === e.target.value)
+                      const template = templatesForGroup.find(t => t.id === e.target.value)
                       if (template) {
                         setUnitOverride(template.unit)
                         setNameOverride('')
                       }
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    disabled={templatesForGroup.length === 0}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">Выберите шаблон...</option>
-                    {templates.map((template) => {
-                      const templateType = template.ownerTrainerId 
-                        ? `[Личный${template.ownerTrainer?.fullName ? ` - ${template.ownerTrainer.fullName}` : ''}]`
-                        : template.isPublic 
-                        ? '[Общий]'
-                        : '[Личный]'
-                      return (
-                        <option key={template.id} value={template.id}>
-                          {templateType} {template.name} ({template.unit}, классы {template.classFrom}-{template.classTo})
-                        </option>
-                      )
-                    })}
+                    {templatesForGroup.length === 0 ? (
+                      <option value="" disabled>
+                        Нет шаблонов для этого класса
+                      </option>
+                    ) : (
+                      (() => {
+                        // Разделяем шаблоны на группы по applicableGender
+                        const commonTemplates = templatesForGroup.filter(t => (t.applicableGender ?? 'ALL') === 'ALL')
+                        const maleTemplates = templatesForGroup.filter(t => t.applicableGender === 'MALE')
+                        const femaleTemplates = templatesForGroup.filter(t => t.applicableGender === 'FEMALE')
+
+                        return (
+                          <>
+                            {commonTemplates.length > 0 && (
+                              <optgroup label="Общие нормативы (мальчики и девочки)">
+                                {commonTemplates.map((template) => {
+                                  const templateType = template.ownerTrainerId 
+                                    ? `[Личный${template.ownerTrainer?.fullName ? ` - ${template.ownerTrainer.fullName}` : ''}]`
+                                    : template.isPublic 
+                                    ? '[Общий]'
+                                    : '[Личный]'
+                                  return (
+                                    <option key={template.id} value={template.id}>
+                                      {templateType} {template.name} ({template.unit}, классы {template.classFrom}-{template.classTo})
+                                    </option>
+                                  )
+                                })}
+                              </optgroup>
+                            )}
+                            {maleTemplates.length > 0 && (
+                              <optgroup label="Нормативы только для мальчиков">
+                                {maleTemplates.map((template) => {
+                                  const templateType = template.ownerTrainerId 
+                                    ? `[Личный${template.ownerTrainer?.fullName ? ` - ${template.ownerTrainer.fullName}` : ''}]`
+                                    : template.isPublic 
+                                    ? '[Общий]'
+                                    : '[Личный]'
+                                  return (
+                                    <option key={template.id} value={template.id}>
+                                      {templateType} {template.name} ({template.unit}, классы {template.classFrom}-{template.classTo})
+                                    </option>
+                                  )
+                                })}
+                              </optgroup>
+                            )}
+                            {femaleTemplates.length > 0 && (
+                              <optgroup label="Нормативы только для девочек">
+                                {femaleTemplates.map((template) => {
+                                  const templateType = template.ownerTrainerId 
+                                    ? `[Личный${template.ownerTrainer?.fullName ? ` - ${template.ownerTrainer.fullName}` : ''}]`
+                                    : template.isPublic 
+                                    ? '[Общий]'
+                                    : '[Личный]'
+                                  return (
+                                    <option key={template.id} value={template.id}>
+                                      {templateType} {template.name} ({template.unit}, классы {template.classFrom}-{template.classTo})
+                                    </option>
+                                  )
+                                })}
+                              </optgroup>
+                            )}
+                          </>
+                        )
+                      })()
+                    )}
                   </select>
-                  {templates.length === 0 && (
+                  {templates.length === 0 ? (
                     <p className="mt-2 text-xs text-gray-500">
                       Нет доступных шаблонов. Создайте шаблоны в админ-панели.
+                    </p>
+                  ) : templatesForGroup.length === 0 ? (
+                    <p className="mt-2 text-xs text-gray-500">
+                      Нет шаблонов для этого класса.
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-xs text-gray-500">
+                      Шаблоны сгруппированы по тому, кто сдаёт норматив: общие, только для мальчиков и только для девочек.
                     </p>
                   )}
                 </div>
@@ -207,6 +313,25 @@ export default function CreateNormFromTemplateModal({
                         onChange={(e) => setTestDate(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Период норматива
+                      </label>
+                      <Select
+                        value={period}
+                        onChange={(e) => setPeriod(e.target.value as 'START_OF_YEAR' | 'END_OF_YEAR' | 'REGULAR')}
+                        options={[
+                          { value: 'REGULAR', label: 'Обычный норматив' },
+                          { value: 'START_OF_YEAR', label: 'Контрольный замер начала года' },
+                          { value: 'END_OF_YEAR', label: 'Контрольный замер конца года' },
+                        ]}
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Используйте «Контрольный замер начала/конца года» для контрольных нормативов. 
+                        Для каждого периода и шаблона может быть только один норматив в учебном году.
+                      </p>
                     </div>
 
                     <div>
@@ -266,7 +391,7 @@ export default function CreateNormFromTemplateModal({
                 type="submit"
                 variant="primary"
                 isLoading={loading}
-                disabled={loading || !selectedTemplateId}
+                disabled={loading || !selectedTemplateId || templatesForGroup.length === 0}
                 className="w-full sm:w-auto"
               >
                 {loading ? 'Создание...' : 'Создать'}

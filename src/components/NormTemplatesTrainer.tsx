@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Button, Alert, InfoCard } from '@/components/ui'
+import { Alert } from '@/components/ui'
+import TemplatesLayout from './norm-templates/TemplatesLayout'
+import TemplatesTable, { NormTemplate as TemplatesTableNormTemplate } from './norm-templates/TemplatesTable'
 
 interface NormTemplate {
   id: string
@@ -11,6 +13,7 @@ interface NormTemplate {
   classFrom: number
   classTo: number
   direction: string
+  applicableGender?: string // "ALL" | "MALE" | "FEMALE"
   ownerTrainerId?: string | null
   isPublic: boolean
   isActive: boolean
@@ -41,6 +44,7 @@ export default function NormTemplatesTrainer() {
     unit: '',
     class: 2, // Одно поле для класса
     direction: 'LOWER_IS_BETTER' as 'LOWER_IS_BETTER' | 'HIGHER_IS_BETTER',
+    applicableGender: 'ALL' as 'ALL' | 'MALE' | 'FEMALE',
     boundaries: [] as NormTemplateBoundary[],
   })
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
@@ -123,6 +127,7 @@ export default function NormTemplatesTrainer() {
         unit: template.unit,
         class: template.classFrom,
         direction: template.direction,
+        applicableGender: (template.applicableGender || 'ALL') as 'ALL' | 'MALE' | 'FEMALE',
         boundaries,
       })
       setEditingTemplate(template)
@@ -148,7 +153,12 @@ export default function NormTemplatesTrainer() {
     }
 
     const requiredBoundaries = [5, 4, 3, 2]
-    const genders: ('MALE' | 'FEMALE')[] = ['MALE', 'FEMALE']
+    const genders: ('MALE' | 'FEMALE')[] = 
+      formData.applicableGender === 'ALL' 
+        ? ['MALE', 'FEMALE'] 
+        : formData.applicableGender === 'MALE' 
+          ? ['MALE'] 
+          : ['FEMALE']
     const missingBoundaries: string[] = []
 
     genders.forEach(gender => {
@@ -191,6 +201,7 @@ export default function NormTemplatesTrainer() {
         ...formData,
         classFrom: formData.class,
         classTo: formData.class,
+        applicableGender: formData.applicableGender,
       }
 
       const response = await fetch(url, {
@@ -214,6 +225,7 @@ export default function NormTemplatesTrainer() {
         unit: '',
         class: 2,
         direction: 'LOWER_IS_BETTER',
+        applicableGender: 'ALL',
         boundaries: [],
       })
       setValidationErrors({})
@@ -466,6 +478,59 @@ export default function NormTemplatesTrainer() {
             </div>
           </div>
 
+          {/* Блок 2.5: Кто сдаёт этот норматив */}
+          <div className="border-b pb-6">
+            <h3 className="h3 mb-4">🔹 Кто сдаёт этот норматив?</h3>
+            <div className="space-y-4">
+              <div className="flex flex-col space-y-3">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="applicableGender"
+                    value="ALL"
+                    checked={formData.applicableGender === 'ALL'}
+                    onChange={(e) => setFormData({ ...formData, applicableGender: e.target.value as 'ALL' | 'MALE' | 'FEMALE' })}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <span className="text-sm font-medium text-heading">Все</span>
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="applicableGender"
+                    value="MALE"
+                    checked={formData.applicableGender === 'MALE'}
+                    onChange={(e) => setFormData({ ...formData, applicableGender: e.target.value as 'ALL' | 'MALE' | 'FEMALE' })}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <span className="text-sm font-medium text-heading">Только мальчики</span>
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="applicableGender"
+                    value="FEMALE"
+                    checked={formData.applicableGender === 'FEMALE'}
+                    onChange={(e) => setFormData({ ...formData, applicableGender: e.target.value as 'ALL' | 'MALE' | 'FEMALE' })}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <span className="text-sm font-medium text-heading">Только девочки</span>
+                </label>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Этот параметр определяет, какие ученики могут сдавать данный норматив и как будет формироваться список при выставлении оценок.
+                  <br />
+                  <strong>• «Все»</strong> — норматив могут сдавать и мальчики, и девочки.
+                  <br />
+                  <strong>• «Только мальчики»</strong> — норматив появится только для мальчиков, оценки будут рассчитываться по мужским границам.
+                  <br />
+                  <strong>• «Только девочки»</strong> — норматив появится только для девочек, оценки будут рассчитываться по женским границам.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Блок 3: Границы оценок */}
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -483,7 +548,8 @@ export default function NormTemplatesTrainer() {
               <div>
                 <div className="grid grid-cols-2 gap-6">
                   {/* Мальчики */}
-                  <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                  {(formData.applicableGender === 'ALL' || formData.applicableGender === 'MALE') && (
+                    <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
                     <h4 className="text-base font-semibold text-heading mb-3">Мальчики</h4>
                     <table className="min-w-full border-collapse border border-gray-300 bg-white">
                       <thead className="bg-gray-100">
@@ -526,9 +592,10 @@ export default function NormTemplatesTrainer() {
                                       }
                                     }
                                   }}
+                                  disabled={formData.applicableGender === 'FEMALE'}
                                   className={`w-full px-2 py-1 border rounded text-sm ${
                                     isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
-                                  }`}
+                                  } ${formData.applicableGender === 'FEMALE' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                   placeholder="0.00"
                                 />
                               </td>
@@ -558,9 +625,10 @@ export default function NormTemplatesTrainer() {
                                       }
                                     }
                                   }}
+                                  disabled={formData.applicableGender === 'FEMALE'}
                                   className={`w-full px-2 py-1 border rounded text-sm ${
                                     isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
-                                  }`}
+                                  } ${formData.applicableGender === 'FEMALE' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                   placeholder="0.00"
                                 />
                               </td>
@@ -576,109 +644,114 @@ export default function NormTemplatesTrainer() {
                         ))}
                       </div>
                     )}
-                    <p className="mt-3 text-xs text-gray-600">
-                      <strong>«От»</strong> — нижняя граница диапазона (минимальное значение). <strong>«До»</strong> — верхняя граница диапазона (максимальное значение). Результат ученика должен входить в этот диапазон включительно (от «От» до «До»), чтобы получить указанную оценку.
-                    </p>
-                  </div>
+                      <p className="mt-3 text-xs text-gray-600">
+                        <strong>«От»</strong> — нижняя граница диапазона (минимальное значение). <strong>«До»</strong> — верхняя граница диапазона (максимальное значение). Результат ученика должен входить в этот диапазон включительно (от «От» до «До»), чтобы получить указанную оценку.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Девочки */}
-                  <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
-                    <h4 className="text-base font-semibold text-heading mb-3">Девочки</h4>
-                    <table className="min-w-full border-collapse border border-gray-300 bg-white">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">Оценка</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">От</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">До</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[5, 4, 3, 2].map(grade => {
-                          const boundary = getBoundary(formData.class, 'FEMALE', grade)
-                          const isEmpty = isFieldEmpty(formData.class, 'FEMALE', grade)
-                          return (
-                            <tr key={grade} className={isEmpty ? 'bg-yellow-50' : ''}>
-                              <td className="px-4 py-2 border border-gray-300 font-medium text-center">{grade}</td>
-                              <td className="px-4 py-2 border border-gray-300">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={boundary?.fromValue || ''}
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value)
-                                    if (!isNaN(val)) {
-                                      const bid = boundary?.id || `temp-${formData.class}-FEMALE-${grade}`
-                                      if (!boundary) {
-                                        setFormData({
-                                          ...formData,
-                                          boundaries: [...formData.boundaries, {
-                                            id: bid,
-                                            grade,
-                                            gender: 'FEMALE',
-                                            class: formData.class,
-                                            fromValue: val,
-                                            toValue: 0,
-                                          }],
-                                        })
-                                      } else {
-                                        updateBoundary(bid, 'fromValue', val)
+                  {(formData.applicableGender === 'ALL' || formData.applicableGender === 'FEMALE') && (
+                    <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                      <h4 className="text-base font-semibold text-heading mb-3">Девочки</h4>
+                      <table className="min-w-full border-collapse border border-gray-300 bg-white">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">Оценка</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">От</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">До</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[5, 4, 3, 2].map(grade => {
+                            const boundary = getBoundary(formData.class, 'FEMALE', grade)
+                            const isEmpty = isFieldEmpty(formData.class, 'FEMALE', grade)
+                            return (
+                              <tr key={grade} className={isEmpty ? 'bg-yellow-50' : ''}>
+                                <td className="px-4 py-2 border border-gray-300 font-medium text-center">{grade}</td>
+                                <td className="px-4 py-2 border border-gray-300">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={boundary?.fromValue || ''}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value)
+                                      if (!isNaN(val)) {
+                                        const bid = boundary?.id || `temp-${formData.class}-FEMALE-${grade}`
+                                        if (!boundary) {
+                                          setFormData({
+                                            ...formData,
+                                            boundaries: [...formData.boundaries, {
+                                              id: bid,
+                                              grade,
+                                              gender: 'FEMALE',
+                                              class: formData.class,
+                                              fromValue: val,
+                                              toValue: 0,
+                                            }],
+                                          })
+                                        } else {
+                                          updateBoundary(bid, 'fromValue', val)
+                                        }
                                       }
-                                    }
-                                  }}
-                                  className={`w-full px-2 py-1 border rounded text-sm ${
-                                    isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
-                                  }`}
-                                  placeholder="0.00"
-                                />
-                              </td>
-                              <td className="px-4 py-2 border border-gray-300">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={boundary?.toValue || ''}
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value)
-                                    if (!isNaN(val)) {
-                                      const bid = boundary?.id || `temp-${formData.class}-FEMALE-${grade}`
-                                      if (!boundary) {
-                                        setFormData({
-                                          ...formData,
-                                          boundaries: [...formData.boundaries, {
-                                            id: bid,
-                                            grade,
-                                            gender: 'FEMALE',
-                                            class: formData.class,
-                                            fromValue: 0,
-                                            toValue: val,
-                                          }],
-                                        })
-                                      } else {
-                                        updateBoundary(bid, 'toValue', val)
+                                    }}
+                                    disabled={formData.applicableGender === 'MALE'}
+                                    className={`w-full px-2 py-1 border rounded text-sm ${
+                                      isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
+                                    } ${formData.applicableGender === 'MALE' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    placeholder="0.00"
+                                  />
+                                </td>
+                                <td className="px-4 py-2 border border-gray-300">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={boundary?.toValue || ''}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value)
+                                      if (!isNaN(val)) {
+                                        const bid = boundary?.id || `temp-${formData.class}-FEMALE-${grade}`
+                                        if (!boundary) {
+                                          setFormData({
+                                            ...formData,
+                                            boundaries: [...formData.boundaries, {
+                                              id: bid,
+                                              grade,
+                                              gender: 'FEMALE',
+                                              class: formData.class,
+                                              fromValue: 0,
+                                              toValue: val,
+                                            }],
+                                          })
+                                        } else {
+                                          updateBoundary(bid, 'toValue', val)
+                                        }
                                       }
-                                    }
-                                  }}
-                                  className={`w-full px-2 py-1 border rounded text-sm ${
-                                    isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
-                                  }`}
-                                  placeholder="0.00"
-                                />
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                    {overlapWarnings[`${formData.class}-FEMALE`] && (
-                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                        {overlapWarnings[`${formData.class}-FEMALE`].map((w, i) => (
-                          <p key={i}>{w}</p>
-                        ))}
-                      </div>
-                    )}
-                    <p className="mt-3 text-xs text-gray-600">
-                      <strong>«От»</strong> — нижняя граница диапазона (минимальное значение). <strong>«До»</strong> — верхняя граница диапазона (максимальное значение). Результат ученика должен входить в этот диапазон включительно (от «От» до «До»), чтобы получить указанную оценку.
-                    </p>
-                  </div>
+                                    }}
+                                    disabled={formData.applicableGender === 'MALE'}
+                                    className={`w-full px-2 py-1 border rounded text-sm ${
+                                      isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
+                                    } ${formData.applicableGender === 'MALE' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    placeholder="0.00"
+                                  />
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                      {overlapWarnings[`${formData.class}-FEMALE`] && (
+                        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                          {overlapWarnings[`${formData.class}-FEMALE`].map((w, i) => (
+                            <p key={i}>{w}</p>
+                          ))}
+                        </div>
+                      )}
+                      <p className="mt-3 text-xs text-gray-600">
+                        <strong>«От»</strong> — нижняя граница диапазона (минимальное значение). <strong>«До»</strong> — верхняя граница диапазона (максимальное значение). Результат ученика должен входить в этот диапазон включительно (от «От» до «До»), чтобы получить указанную оценку.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -754,168 +827,35 @@ export default function NormTemplatesTrainer() {
 
   // Фильтруем шаблоны: показываем только личные (ownerTrainerId != null) и общие (isPublic = true)
   const personalTemplates = templates.filter(t => t.ownerTrainerId !== null && !t.isPublic)
-  const publicTemplates = templates.filter(t => t.isPublic && t.ownerTrainerId === null)
+  
+  // Преобразуем данные для TemplatesTable
+  const templatesForTable: TemplatesTableNormTemplate[] = personalTemplates.map(t => ({
+    ...t,
+    ownerTrainer: undefined, // Для личных шаблонов тренера ownerTrainer не нужен
+  }))
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="h1 mb-2">Мои шаблоны нормативов</h1>
-          <p className="text-sm text-secondary">
-            Управление личными шаблонами нормативов. Вы также можете использовать общие шаблоны, созданные администратором.
-          </p>
-        </div>
-        <Button
-          onClick={() => setShowForm(true)}
-          variant="primary"
-          className="w-full sm:w-auto"
-        >
-          Создать личный шаблон
-        </Button>
-      </div>
-
+    <TemplatesLayout
+      title="Мои шаблоны нормативов"
+      description="Управление личными шаблонами нормативов. Вы также можете использовать общие шаблоны, созданные администратором."
+      actionButtonLabel="Создать личный шаблон"
+      onAction={() => setShowForm(true)}
+    >
       {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <div className="text-sm text-red-800">{error}</div>
-        </div>
+        <Alert variant="error" message={error} className="mb-4" />
       )}
 
-      {/* Личные шаблоны */}
-      <div>
-        <h2 className="h2 mb-4">Личные шаблоны</h2>
-        {personalTemplates.length === 0 ? (
-          <div className="bg-white shadow rounded-lg p-6">
-            <p className="text-gray-500 text-center">
-              У вас пока нет личных шаблонов. Создайте первый шаблон.
-            </p>
-          </div>
-        ) : (
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Название
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Единица
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Классы
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Направление
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Границы
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Статус
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Действия
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {personalTemplates.map((template) => (
-                  <tr key={template.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {template.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {template.unit}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {template.classFrom}–{template.classTo}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {template.direction === 'LOWER_IS_BETTER' ? 'Меньше = лучше' : 'Больше = лучше'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {template._count?.boundaries || 0}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        template.isActive
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {template.isActive ? 'Активен' : 'Неактивен'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => loadTemplate(template.id)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-4"
-                      >
-                        Редактировать
-                      </button>
-                      <button
-                        onClick={() => handleDelete(template.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Удалить
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Общие шаблоны (только просмотр) */}
-      {publicTemplates.length > 0 && (
-        <div>
-          <h2 className="h2 mb-4">Общие шаблоны (только просмотр)</h2>
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Название
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Единица
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Классы
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Направление
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Границы
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {publicTemplates.map((template) => (
-                  <tr key={template.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {template.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {template.unit}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {template.classFrom}–{template.classTo}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {template.direction === 'LOWER_IS_BETTER' ? 'Меньше = лучше' : 'Больше = лучше'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {template._count?.boundaries || 0}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
+      <TemplatesTable
+        templates={templatesForTable}
+        showTypeColumn={true}
+        showStatusColumn={false}
+        showApplicableGenderColumn={true}
+        emptyMessage="У вас пока нет личных шаблонов. Создайте первый шаблон."
+        emptyActionLabel="Создать личный шаблон"
+        onEmptyAction={() => setShowForm(true)}
+        onEdit={(templateId) => loadTemplate(templateId)}
+        onDelete={(templateId) => handleDelete(templateId)}
+      />
+    </TemplatesLayout>
   )
 }

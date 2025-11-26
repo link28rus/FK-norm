@@ -15,6 +15,7 @@ export default function GroupTabs({ groupId }: GroupTabsProps) {
     { label: 'Журнал', href: `/trainer/groups/${groupId}/journal` },
     { label: 'Нормативы', href: `/trainer/groups/${groupId}/norms` },
     { label: 'Индивидуальные нормативы', href: `/trainer/groups/${groupId}/individual-norms` },
+    { label: 'Прогресс', href: `/trainer/groups/${groupId}/progress` },
   ]
 
   return <Tabs tabs={tabs} currentPath={pathname || ''} className="mb-6" />

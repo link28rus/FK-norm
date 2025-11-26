@@ -5,10 +5,11 @@ type Direction = 'LOWER_IS_BETTER' | 'HIGHER_IS_BETTER'
 
 export interface CalcGradeParams {
   value: number        // результат ученика
-  gender: 'MALE' | 'FEMALE' | string | null // Принимаем любой формат, преобразуем внутри
+  gender: 'MALE' | 'FEMALE' | string | null // Фактический пол ученика (для applicableGender === 'ALL')
   class: number        // 2, 3, 4 ...
   templateId: string
   groupNormId?: string
+  applicableGender?: 'ALL' | 'MALE' | 'FEMALE' // Для кого норматив по полу (если указан, переопределяет пол для расчета)
 }
 
 /**
@@ -17,16 +18,36 @@ export interface CalcGradeParams {
  * @returns Оценка (5, 4, 3, 2) или null, если результат вне диапазонов
  */
 export async function calcGrade(params: CalcGradeParams): Promise<number | null> {
-  const { value, gender: genderParam, class: classValue, templateId, groupNormId } = params
+  const { value, gender: athleteGenderParam, class: classValue, templateId, groupNormId, applicableGender } = params
 
   try {
-    // Преобразуем пол в английский формат
-    const gender = convertGenderToEnglish(genderParam)
-    
-    if (!gender) {
-      console.warn('[calcGrade] Gender not provided or invalid:', genderParam)
+    // Определяем пол для расчета границ оценок
+    // Если applicableGender === 'MALE' или 'FEMALE', всегда используем его (независимо от пола ученика)
+    // Если applicableGender === 'ALL' или не указан, используем фактический пол ученика
+    let genderForBoundaries: 'MALE' | 'FEMALE' | null = null
+
+    if (applicableGender === 'MALE') {
+      // Норматив только для мальчиков - всегда используем мужские границы
+      genderForBoundaries = 'MALE'
+    } else if (applicableGender === 'FEMALE') {
+      // Норматив только для девочек - всегда используем женские границы
+      genderForBoundaries = 'FEMALE'
+    } else {
+      // applicableGender === 'ALL' или не указан - используем фактический пол ученика
+      const athleteGender = convertGenderToEnglish(athleteGenderParam)
+      genderForBoundaries = athleteGender
+    }
+
+    if (!genderForBoundaries) {
+      console.warn('[calcGrade] Gender not provided or invalid:', {
+        athleteGender: athleteGenderParam,
+        applicableGender,
+        genderForBoundaries,
+      })
       return null
     }
+
+    const gender = genderForBoundaries // Используем для поиска границ
     // 1. Если есть groupNormId, проверить, использует ли он кастомные границы
     let boundaries: Array<{
       grade: number
@@ -85,7 +106,14 @@ export async function calcGrade(params: CalcGradeParams): Promise<number | null>
     }
 
     if (boundaries.length === 0) {
-      console.warn('[calcGrade] No boundaries found for:', { templateId, gender, class: classValue, groupNormId })
+      console.warn('[calcGrade] No boundaries found for:', {
+        templateId,
+        gender,
+        class: classValue,
+        groupNormId,
+        applicableGender,
+        athleteGender: athleteGenderParam,
+      })
       return null
     }
 
@@ -98,9 +126,11 @@ export async function calcGrade(params: CalcGradeParams): Promise<number | null>
       })),
       value,
       templateId,
-      gender,
+      gender, // Пол, использованный для поиска границ
       class: classValue,
       groupNormId,
+      applicableGender, // Для кого норматив по полу
+      athleteGender: athleteGenderParam, // Фактический пол ученика
     })
 
     // Получаем шаблон для определения направления

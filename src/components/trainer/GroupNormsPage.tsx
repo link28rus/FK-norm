@@ -30,10 +30,13 @@ interface GroupNorm {
   date: string
   unit: string | null
   count: number
+  eligibleAthletesCount?: number // Количество учеников, которые могут сдавать этот норматив (с учетом applicableGender)
+  applicableGender?: 'ALL' | 'MALE' | 'FEMALE' // Для кого норматив по полу
   isFromTemplate?: boolean
   groupNormId?: string
   templateId?: string
   norms?: any[]
+  period?: 'START_OF_YEAR' | 'END_OF_YEAR' | 'REGULAR' // Период норматива
 }
 
 export default function GroupNormsPage({
@@ -105,15 +108,22 @@ export default function GroupNormsPage({
 
       // Объединяем нормативы
       const allNorms = [
-        ...(normsData.norms || []).map((n: any) => ({ ...n, isFromTemplate: false })),
+        ...(normsData.norms || []).map((n: any) => ({ 
+          ...n, 
+          isFromTemplate: false,
+          applicableGender: 'ALL' as const, // Обычные нормативы по умолчанию для всех
+        })),
         ...(groupNormsData.groupNorms || []).map((gn: any) => ({
           type: gn.template.name,
           date: gn.testDate,
           unit: gn.unitOverride || gn.template.unit,
           count: gn._count?.norms || 0,
+          eligibleAthletesCount: gn.eligibleAthletesCount ?? 0, // Количество учеников, которые могут сдавать норматив
+          applicableGender: (gn.applicableGender || gn.template?.applicableGender || 'ALL') as 'ALL' | 'MALE' | 'FEMALE', // Для кого норматив по полу
           isFromTemplate: true,
           groupNormId: gn.id,
           templateId: gn.templateId,
+          period: gn.period || 'REGULAR', // Период норматива
         })),
       ]
 
@@ -280,101 +290,193 @@ export default function GroupNormsPage({
             </div>
           </div>
         </InfoCard>
-      ) : (
-        <InfoCard>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Вид норматива</TableHead>
-                <TableHead className="hidden md:table-cell">Дата зачёта</TableHead>
-                <TableHead className="hidden lg:table-cell">Единица измерения</TableHead>
-                <TableHead className="hidden md:table-cell">Количество учащихся</TableHead>
-                <TableHead align="right">Действия</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {groupNorms.map((normGroup, index) => (
-                <TableRow key={`${normGroup.type}-${normGroup.date}-${index}`}>
-                  <TableCell className="font-medium">
-                    <div className="flex flex-col gap-1">
-                      <span>{normGroup.type}</span>
-                      {normGroup.isFromTemplate && (
-                        <Badge variant="success" size="sm" className="w-fit">
-                          Из шаблона
-                        </Badge>
-                      )}
-                      <span className="text-xs text-secondary md:hidden">
-                        {new Date(normGroup.date).toLocaleDateString('ru-RU')}
-                        {normGroup.unit && ` · ${normGroup.unit}`}
-                        {` · ${normGroup.count} уч.`}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-secondary hidden md:table-cell">
-                    {new Date(normGroup.date).toLocaleDateString('ru-RU')}
-                  </TableCell>
-                  <TableCell className="text-secondary hidden lg:table-cell">
-                    {normGroup.unit || '—'}
-                  </TableCell>
-                  <TableCell className="text-secondary hidden md:table-cell">
-                    {normGroup.count}
-                  </TableCell>
-                  <TableCell align="right">
-                    <div className="flex justify-end gap-2 flex-wrap">
-                      <Button
-                        onClick={() => {
-                          if (normGroup.isFromTemplate && normGroup.groupNormId) {
-                            setEditingNorm({
-                              type: normGroup.type,
-                              date: normGroup.date,
-                              unit: normGroup.unit,
-                              norms: [],
-                              isFromTemplate: true,
-                              groupNormId: normGroup.groupNormId,
-                            })
-                          } else {
-                            setEditingNorm({
-                              type: normGroup.type,
-                              date: normGroup.date,
-                              unit: normGroup.unit,
-                              norms: normGroup.norms || [],
-                              isFromTemplate: false,
-                            })
-                          }
-                        }}
-                        variant="secondary"
-                        size="sm"
-                        className="w-full sm:w-auto"
-                      >
-                        Открыть
-                      </Button>
-                      <Button
-                        onClick={() =>
-                          handleDeleteGroupNorm(
-                            normGroup.type,
-                            normGroup.date,
-                            normGroup.isFromTemplate,
-                            normGroup.groupNormId
-                          )
-                        }
-                        variant="danger"
-                        size="sm"
-                        className="w-full sm:w-auto"
-                      >
-                        Удалить
-                      </Button>
-                    </div>
-                  </TableCell>
+      ) : (() => {
+        // Разделяем нормативы по applicableGender
+        const commonNorms = groupNorms.filter(n => (n.applicableGender ?? 'ALL') === 'ALL')
+        const maleOnlyNorms = groupNorms.filter(n => n.applicableGender === 'MALE')
+        const femaleOnlyNorms = groupNorms.filter(n => n.applicableGender === 'FEMALE')
+
+        // Функция для отрисовки таблицы нормативов
+        const renderNormsTable = (norms: GroupNorm[]) => {
+          if (norms.length === 0) return null
+
+          return (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Вид норматива</TableHead>
+                  <TableHead className="hidden md:table-cell">Дата зачёта</TableHead>
+                  <TableHead className="hidden lg:table-cell">Единица измерения</TableHead>
+                  <TableHead className="hidden md:table-cell">Количество учащихся</TableHead>
+                  <TableHead align="right">Действия</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </InfoCard>
-      )}
+              </TableHeader>
+              <TableBody>
+                {norms.map((normGroup, index) => {
+                  // Проверяем, есть ли ученики, которые могут сдавать этот норматив
+                  const eligibleCount = normGroup.isFromTemplate 
+                    ? (normGroup.eligibleAthletesCount ?? 0)
+                    : normGroup.count
+                  const hasEligibleStudents = eligibleCount > 0
+
+                  return (
+                    <TableRow key={`${normGroup.type}-${normGroup.date}-${index}`}>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span>{normGroup.type}</span>
+                            {normGroup.applicableGender && normGroup.applicableGender !== 'ALL' && (
+                              <Badge 
+                                variant={normGroup.applicableGender === 'MALE' ? 'info' : 'outline'} 
+                                size="sm"
+                              >
+                                {normGroup.applicableGender === 'MALE' ? 'Мальчики' : 'Девочки'}
+                              </Badge>
+                            )}
+                            {normGroup.applicableGender === 'ALL' && (
+                              <Badge variant="default" size="sm">
+                                Общий
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1 items-center">
+                            {normGroup.isFromTemplate && (
+                              <Badge variant="success" size="sm" className="w-fit">
+                                Из шаблона
+                              </Badge>
+                            )}
+                            {normGroup.period && normGroup.period !== 'REGULAR' && (
+                              <Badge 
+                                variant={normGroup.period === 'START_OF_YEAR' ? 'info' : 'warning'} 
+                                size="sm" 
+                                className="w-fit"
+                              >
+                                {normGroup.period === 'START_OF_YEAR' ? 'Начало года' : 'Конец года'}
+                              </Badge>
+                            )}
+                          </div>
+                          {!hasEligibleStudents && normGroup.isFromTemplate && (
+                            <p className="text-xs text-yellow-600 mt-1">
+                              ⚠ Нет учеников, которые могут сдавать этот норматив (ограничение по полу).
+                            </p>
+                          )}
+                          <span className="text-xs text-secondary md:hidden">
+                            {new Date(normGroup.date).toLocaleDateString('ru-RU')}
+                            {normGroup.unit && ` · ${normGroup.unit}`}
+                            {` · ${normGroup.count} уч.`}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-secondary hidden md:table-cell">
+                        {new Date(normGroup.date).toLocaleDateString('ru-RU')}
+                      </TableCell>
+                      <TableCell className="text-secondary hidden lg:table-cell">
+                        {normGroup.unit || '—'}
+                      </TableCell>
+                      <TableCell className="text-secondary hidden md:table-cell">
+                        <div className="flex flex-col">
+                          <span>{normGroup.count}</span>
+                          {!hasEligibleStudents && normGroup.isFromTemplate && (
+                            <span className="text-xs text-yellow-600">
+                              (нет подходящих учеников)
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell align="right">
+                        <div className="flex justify-end gap-2 flex-wrap">
+                          <Button
+                            onClick={() => {
+                              if (normGroup.isFromTemplate && normGroup.groupNormId) {
+                                setEditingNorm({
+                                  type: normGroup.type,
+                                  date: normGroup.date,
+                                  unit: normGroup.unit,
+                                  norms: [],
+                                  isFromTemplate: true,
+                                  groupNormId: normGroup.groupNormId,
+                                })
+                              } else {
+                                setEditingNorm({
+                                  type: normGroup.type,
+                                  date: normGroup.date,
+                                  unit: normGroup.unit,
+                                  norms: normGroup.norms || [],
+                                  isFromTemplate: false,
+                                })
+                              }
+                            }}
+                            variant="secondary"
+                            size="sm"
+                            className="w-full sm:w-auto"
+                            disabled={!hasEligibleStudents && normGroup.isFromTemplate}
+                          >
+                            Открыть
+                          </Button>
+                          <Button
+                            onClick={() =>
+                              handleDeleteGroupNorm(
+                                normGroup.type,
+                                normGroup.date,
+                                normGroup.isFromTemplate,
+                                normGroup.groupNormId
+                              )
+                            }
+                            variant="danger"
+                            size="sm"
+                            className="w-full sm:w-auto"
+                          >
+                            Удалить
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          )
+        }
+
+        return (
+          <div className="space-y-6">
+            {/* Общие нормативы */}
+            {commonNorms.length > 0 && (
+              <div>
+                <h3 className="h3 mb-3 font-semibold">Общие нормативы</h3>
+                <InfoCard>
+                  {renderNormsTable(commonNorms)}
+                </InfoCard>
+              </div>
+            )}
+
+            {/* Нормативы для мальчиков */}
+            {maleOnlyNorms.length > 0 && (
+              <div>
+                <h3 className="h3 mb-3 font-semibold">Нормативы для мальчиков</h3>
+                <InfoCard>
+                  {renderNormsTable(maleOnlyNorms)}
+                </InfoCard>
+              </div>
+            )}
+
+            {/* Нормативы для девочек */}
+            {femaleOnlyNorms.length > 0 && (
+              <div>
+                <h3 className="h3 mb-3 font-semibold">Нормативы для девочек</h3>
+                <InfoCard>
+                  {renderNormsTable(femaleOnlyNorms)}
+                </InfoCard>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       <CreateNormFromTemplateModal
         groupId={groupId}
         groupClass={group?.class || null}
+        groupName={group?.name || null}
         isOpen={showCreateFromTemplateModal}
         onClose={() => {
           setShowCreateFromTemplateModal(false)

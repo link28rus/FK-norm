@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableEmptyState, Badge, Alert, Button, InfoCard, useToast } from '@/components/ui'
+import { Alert, useToast } from '@/components/ui'
+import TemplatesLayout from './norm-templates/TemplatesLayout'
+import TemplatesTable, { NormTemplate as TemplatesTableNormTemplate } from './norm-templates/TemplatesTable'
 
 interface NormTemplate {
   id: string
@@ -11,6 +13,7 @@ interface NormTemplate {
   classFrom: number
   classTo: number
   direction: string
+  applicableGender?: string // "ALL" | "MALE" | "FEMALE"
   ownerTrainerId?: string | null
   isPublic: boolean
   isActive: boolean
@@ -52,6 +55,7 @@ export default function NormTemplatesAdmin() {
     unit: '',
     class: 2, // Одно поле для класса
     direction: 'LOWER_IS_BETTER' as 'LOWER_IS_BETTER' | 'HIGHER_IS_BETTER',
+    applicableGender: 'ALL' as 'ALL' | 'MALE' | 'FEMALE',
     ownerTrainerId: null as string | null,
     isPublic: true,
     boundaries: [] as NormTemplateBoundary[],
@@ -155,6 +159,7 @@ export default function NormTemplatesAdmin() {
         unit: template.unit,
         class: template.classFrom, // Используем classFrom
         direction: template.direction,
+        applicableGender: (template.applicableGender || 'ALL') as 'ALL' | 'MALE' | 'FEMALE',
         ownerTrainerId: template.ownerTrainerId || null,
         isPublic: template.isPublic ?? false,
         boundaries,
@@ -181,9 +186,14 @@ export default function NormTemplatesAdmin() {
       errors.class = 'Класс должен быть от 1 до 11'
     }
 
-    // Проверяем заполненность границ
+    // Проверяем заполненность границ только для выбранного пола
     const requiredBoundaries = [5, 4, 3, 2]
-    const genders: ('MALE' | 'FEMALE')[] = ['MALE', 'FEMALE']
+    const genders: ('MALE' | 'FEMALE')[] = 
+      formData.applicableGender === 'ALL' 
+        ? ['MALE', 'FEMALE'] 
+        : formData.applicableGender === 'MALE' 
+          ? ['MALE'] 
+          : ['FEMALE']
     const missingBoundaries: string[] = []
 
     genders.forEach(gender => {
@@ -226,6 +236,7 @@ export default function NormTemplatesAdmin() {
         ...formData,
         classFrom: formData.class,
         classTo: formData.class,
+        applicableGender: formData.applicableGender,
       }
 
       const response = await fetch(url, {
@@ -249,6 +260,7 @@ export default function NormTemplatesAdmin() {
         unit: '',
         class: 2,
         direction: 'LOWER_IS_BETTER',
+        applicableGender: 'ALL',
         ownerTrainerId: null,
         isPublic: true,
         boundaries: [],
@@ -353,6 +365,7 @@ export default function NormTemplatesAdmin() {
                 unit: '',
                 class: 2,
                 direction: 'LOWER_IS_BETTER',
+                applicableGender: 'ALL',
                 boundaries: [],
               })
               setValidationErrors({})
@@ -505,6 +518,59 @@ export default function NormTemplatesAdmin() {
             </div>
           </div>
 
+          {/* Блок 2.5: Кто сдаёт этот норматив */}
+          <div className="border-b pb-6">
+            <h3 className="h3 mb-4">🔹 Кто сдаёт этот норматив?</h3>
+            <div className="space-y-4">
+              <div className="flex flex-col space-y-3">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="applicableGender"
+                    value="ALL"
+                    checked={formData.applicableGender === 'ALL'}
+                    onChange={(e) => setFormData({ ...formData, applicableGender: e.target.value as 'ALL' | 'MALE' | 'FEMALE' })}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <span className="text-sm font-medium text-heading">Все</span>
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="applicableGender"
+                    value="MALE"
+                    checked={formData.applicableGender === 'MALE'}
+                    onChange={(e) => setFormData({ ...formData, applicableGender: e.target.value as 'ALL' | 'MALE' | 'FEMALE' })}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <span className="text-sm font-medium text-heading">Только мальчики</span>
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="applicableGender"
+                    value="FEMALE"
+                    checked={formData.applicableGender === 'FEMALE'}
+                    onChange={(e) => setFormData({ ...formData, applicableGender: e.target.value as 'ALL' | 'MALE' | 'FEMALE' })}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <span className="text-sm font-medium text-heading">Только девочки</span>
+                </label>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Этот параметр определяет, какие ученики могут сдавать данный норматив и как будет формироваться список при выставлении оценок.
+                  <br />
+                  <strong>• «Все»</strong> — норматив могут сдавать и мальчики, и девочки.
+                  <br />
+                  <strong>• «Только мальчики»</strong> — норматив появится только для мальчиков, оценки будут рассчитываться по мужским границам.
+                  <br />
+                  <strong>• «Только девочки»</strong> — норматив появится только для девочек, оценки будут рассчитываться по женским границам.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Блок 3: Границы оценок */}
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -523,206 +589,214 @@ export default function NormTemplatesAdmin() {
               <div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Мальчики */}
-                  <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
-                    <h4 className="text-base font-semibold text-heading mb-3">Мальчики</h4>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full border-collapse border border-gray-300 bg-white">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">Оценка</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">От</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">До</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[5, 4, 3, 2].map(grade => {
-                          const boundary = getBoundary(formData.class, 'MALE', grade)
-                          const isEmpty = isFieldEmpty(formData.class, 'MALE', grade)
-                          return (
-                            <tr key={grade} className={isEmpty ? 'bg-yellow-50' : ''}>
-                              <td className="px-4 py-2 border border-gray-300 font-medium text-center">{grade}</td>
-                              <td className="px-4 py-2 border border-gray-300">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={boundary?.fromValue || ''}
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value)
-                                    if (!isNaN(val)) {
-                                      const bid = boundary?.id || `temp-${formData.class}-MALE-${grade}`
-                                      if (!boundary) {
-                                        setFormData({
-                                          ...formData,
-                                          boundaries: [...formData.boundaries, {
-                                            id: bid,
-                                            grade,
-                                            gender: 'MALE',
-                                            class: formData.class,
-                                            fromValue: val,
-                                            toValue: 0,
-                                          }],
-                                        })
-                                      } else {
-                                        updateBoundary(bid, 'fromValue', val)
+                  {(formData.applicableGender === 'ALL' || formData.applicableGender === 'MALE') && (
+                    <div className={`border border-gray-300 rounded-lg p-4 bg-gray-50`}>
+                      <h4 className="text-base font-semibold text-heading mb-3">Мальчики</h4>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full border-collapse border border-gray-300 bg-white">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">Оценка</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">От</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">До</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[5, 4, 3, 2].map(grade => {
+                            const boundary = getBoundary(formData.class, 'MALE', grade)
+                            const isEmpty = isFieldEmpty(formData.class, 'MALE', grade)
+                            return (
+                              <tr key={grade} className={isEmpty ? 'bg-yellow-50' : ''}>
+                                <td className="px-4 py-2 border border-gray-300 font-medium text-center">{grade}</td>
+                                <td className="px-4 py-2 border border-gray-300">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={boundary?.fromValue || ''}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value)
+                                      if (!isNaN(val)) {
+                                        const bid = boundary?.id || `temp-${formData.class}-MALE-${grade}`
+                                        if (!boundary) {
+                                          setFormData({
+                                            ...formData,
+                                            boundaries: [...formData.boundaries, {
+                                              id: bid,
+                                              grade,
+                                              gender: 'MALE',
+                                              class: formData.class,
+                                              fromValue: val,
+                                              toValue: 0,
+                                            }],
+                                          })
+                                        } else {
+                                          updateBoundary(bid, 'fromValue', val)
+                                        }
                                       }
-                                    }
-                                  }}
-                                  className={`w-full px-2 py-1 border rounded text-sm ${
-                                    isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
-                                  }`}
-                                  placeholder="0.00"
-                                />
-                              </td>
-                              <td className="px-4 py-2 border border-gray-300">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={boundary?.toValue || ''}
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value)
-                                    if (!isNaN(val)) {
-                                      const bid = boundary?.id || `temp-${formData.class}-MALE-${grade}`
-                                      if (!boundary) {
-                                        setFormData({
-                                          ...formData,
-                                          boundaries: [...formData.boundaries, {
-                                            id: bid,
-                                            grade,
-                                            gender: 'MALE',
-                                            class: formData.class,
-                                            fromValue: 0,
-                                            toValue: val,
-                                          }],
-                                        })
-                                      } else {
-                                        updateBoundary(bid, 'toValue', val)
+                                    }}
+                                    disabled={formData.applicableGender === 'FEMALE'}
+                                    className={`w-full px-2 py-1 border rounded text-sm ${
+                                      isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
+                                    } ${formData.applicableGender === 'FEMALE' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    placeholder="0.00"
+                                  />
+                                </td>
+                                <td className="px-4 py-2 border border-gray-300">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={boundary?.toValue || ''}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value)
+                                      if (!isNaN(val)) {
+                                        const bid = boundary?.id || `temp-${formData.class}-MALE-${grade}`
+                                        if (!boundary) {
+                                          setFormData({
+                                            ...formData,
+                                            boundaries: [...formData.boundaries, {
+                                              id: bid,
+                                              grade,
+                                              gender: 'MALE',
+                                              class: formData.class,
+                                              fromValue: 0,
+                                              toValue: val,
+                                            }],
+                                          })
+                                        } else {
+                                          updateBoundary(bid, 'toValue', val)
+                                        }
                                       }
-                                    }
-                                  }}
-                                  className={`w-full px-2 py-1 border rounded text-sm ${
-                                    isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
-                                  }`}
-                                  placeholder="0.00"
-                                />
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                      </table>
-                    </div>
-                    {overlapWarnings[`${formData.class}-MALE`] && (
-                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                        {overlapWarnings[`${formData.class}-MALE`].map((w, i) => (
-                          <p key={i}>{w}</p>
-                        ))}
+                                    }}
+                                    disabled={formData.applicableGender === 'FEMALE'}
+                                    className={`w-full px-2 py-1 border rounded text-sm ${
+                                      isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
+                                    } ${formData.applicableGender === 'FEMALE' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    placeholder="0.00"
+                                  />
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                        </table>
                       </div>
-                    )}
-                    <p className="mt-3 text-xs text-gray-600">
-                      <strong>«От»</strong> — нижняя граница диапазона (минимальное значение). <strong>«До»</strong> — верхняя граница диапазона (максимальное значение). Результат ученика должен входить в этот диапазон включительно (от «От» до «До»), чтобы получить указанную оценку.
-                    </p>
-                  </div>
+                      {overlapWarnings[`${formData.class}-MALE`] && (
+                        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                          {overlapWarnings[`${formData.class}-MALE`].map((w, i) => (
+                            <p key={i}>{w}</p>
+                          ))}
+                        </div>
+                      )}
+                      <p className="mt-3 text-xs text-gray-600">
+                        <strong>«От»</strong> — нижняя граница диапазона (минимальное значение). <strong>«До»</strong> — верхняя граница диапазона (максимальное значение). Результат ученика должен входить в этот диапазон включительно (от «От» до «До»), чтобы получить указанную оценку.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Девочки */}
-                  <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
-                    <h4 className="text-base font-semibold text-heading mb-3">Девочки</h4>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full border-collapse border border-gray-300 bg-white">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">Оценка</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">От</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">До</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[5, 4, 3, 2].map(grade => {
-                          const boundary = getBoundary(formData.class, 'FEMALE', grade)
-                          const isEmpty = isFieldEmpty(formData.class, 'FEMALE', grade)
-                          return (
-                            <tr key={grade} className={isEmpty ? 'bg-yellow-50' : ''}>
-                              <td className="px-4 py-2 border border-gray-300 font-medium text-center">{grade}</td>
-                              <td className="px-4 py-2 border border-gray-300">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={boundary?.fromValue || ''}
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value)
-                                    if (!isNaN(val)) {
-                                      const bid = boundary?.id || `temp-${formData.class}-FEMALE-${grade}`
-                                      if (!boundary) {
-                                        setFormData({
-                                          ...formData,
-                                          boundaries: [...formData.boundaries, {
-                                            id: bid,
-                                            grade,
-                                            gender: 'FEMALE',
-                                            class: formData.class,
-                                            fromValue: val,
-                                            toValue: 0,
-                                          }],
-                                        })
-                                      } else {
-                                        updateBoundary(bid, 'fromValue', val)
+                  {(formData.applicableGender === 'ALL' || formData.applicableGender === 'FEMALE') && (
+                    <div className={`border border-gray-300 rounded-lg p-4 bg-gray-50`}>
+                      <h4 className="text-base font-semibold text-heading mb-3">Девочки</h4>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full border-collapse border border-gray-300 bg-white">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">Оценка</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">От</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 border border-gray-300">До</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[5, 4, 3, 2].map(grade => {
+                            const boundary = getBoundary(formData.class, 'FEMALE', grade)
+                            const isEmpty = isFieldEmpty(formData.class, 'FEMALE', grade)
+                            return (
+                              <tr key={grade} className={isEmpty ? 'bg-yellow-50' : ''}>
+                                <td className="px-4 py-2 border border-gray-300 font-medium text-center">{grade}</td>
+                                <td className="px-4 py-2 border border-gray-300">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={boundary?.fromValue || ''}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value)
+                                      if (!isNaN(val)) {
+                                        const bid = boundary?.id || `temp-${formData.class}-FEMALE-${grade}`
+                                        if (!boundary) {
+                                          setFormData({
+                                            ...formData,
+                                            boundaries: [...formData.boundaries, {
+                                              id: bid,
+                                              grade,
+                                              gender: 'FEMALE',
+                                              class: formData.class,
+                                              fromValue: val,
+                                              toValue: 0,
+                                            }],
+                                          })
+                                        } else {
+                                          updateBoundary(bid, 'fromValue', val)
+                                        }
                                       }
-                                    }
-                                  }}
-                                  className={`w-full px-2 py-1 border rounded text-sm ${
-                                    isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
-                                  }`}
-                                  placeholder="0.00"
-                                />
-                              </td>
-                              <td className="px-4 py-2 border border-gray-300">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={boundary?.toValue || ''}
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value)
-                                    if (!isNaN(val)) {
-                                      const bid = boundary?.id || `temp-${formData.class}-FEMALE-${grade}`
-                                      if (!boundary) {
-                                        setFormData({
-                                          ...formData,
-                                          boundaries: [...formData.boundaries, {
-                                            id: bid,
-                                            grade,
-                                            gender: 'FEMALE',
-                                            class: formData.class,
-                                            fromValue: 0,
-                                            toValue: val,
-                                          }],
-                                        })
-                                      } else {
-                                        updateBoundary(bid, 'toValue', val)
+                                    }}
+                                    disabled={formData.applicableGender === 'MALE'}
+                                    className={`w-full px-2 py-1 border rounded text-sm ${
+                                      isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
+                                    } ${formData.applicableGender === 'MALE' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    placeholder="0.00"
+                                  />
+                                </td>
+                                <td className="px-4 py-2 border border-gray-300">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={boundary?.toValue || ''}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value)
+                                      if (!isNaN(val)) {
+                                        const bid = boundary?.id || `temp-${formData.class}-FEMALE-${grade}`
+                                        if (!boundary) {
+                                          setFormData({
+                                            ...formData,
+                                            boundaries: [...formData.boundaries, {
+                                              id: bid,
+                                              grade,
+                                              gender: 'FEMALE',
+                                              class: formData.class,
+                                              fromValue: 0,
+                                              toValue: val,
+                                            }],
+                                          })
+                                        } else {
+                                          updateBoundary(bid, 'toValue', val)
+                                        }
                                       }
-                                    }
-                                  }}
-                                  className={`w-full px-2 py-1 border rounded text-sm ${
-                                    isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
-                                  }`}
-                                  placeholder="0.00"
-                                />
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                      </table>
-                    </div>
-                    {overlapWarnings[`${formData.class}-FEMALE`] && (
-                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                        {overlapWarnings[`${formData.class}-FEMALE`].map((w, i) => (
-                          <p key={i}>{w}</p>
-                        ))}
+                                    }}
+                                    disabled={formData.applicableGender === 'MALE'}
+                                    className={`w-full px-2 py-1 border rounded text-sm ${
+                                      isEmpty ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
+                                    } ${formData.applicableGender === 'MALE' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    placeholder="0.00"
+                                  />
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                        </table>
                       </div>
-                    )}
-                    <p className="mt-3 text-xs text-gray-600">
-                      <strong>«От»</strong> — нижняя граница диапазона (минимальное значение). <strong>«До»</strong> — верхняя граница диапазона (максимальное значение). Результат ученика должен входить в этот диапазон включительно (от «От» до «До»), чтобы получить указанную оценку.
-                    </p>
-                  </div>
+                      {overlapWarnings[`${formData.class}-FEMALE`] && (
+                        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                          {overlapWarnings[`${formData.class}-FEMALE`].map((w, i) => (
+                            <p key={i}>{w}</p>
+                          ))}
+                        </div>
+                      )}
+                      <p className="mt-3 text-xs text-gray-600">
+                        <strong>«От»</strong> — нижняя граница диапазона (минимальное значение). <strong>«До»</strong> — верхняя граница диапазона (максимальное значение). Результат ученика должен входить в этот диапазон включительно (от «От» до «До»), чтобы получить указанную оценку.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -851,105 +925,30 @@ export default function NormTemplatesAdmin() {
     )
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="h2">Шаблоны нормативов</h2>
-        <Button
-          onClick={() => setShowForm(true)}
-          variant="primary"
-          className="w-full sm:w-auto"
-        >
-          Добавить шаблон
-        </Button>
-      </div>
+  // Преобразуем данные для TemplatesTable
+  const templatesForTable: TemplatesTableNormTemplate[] = templates.map(t => ({
+    ...t,
+  }))
 
+  return (
+    <TemplatesLayout
+      title="Шаблоны нормативов"
+      actionButtonLabel="Добавить шаблон"
+      onAction={() => setShowForm(true)}
+    >
       {error && (
         <Alert variant="error" message={error} className="mb-4" />
       )}
 
-      {templates.length === 0 ? (
-        <TableEmptyState
-          colSpan={8}
-          message="Шаблоны нормативов пока не созданы"
-          actionLabel="Добавить шаблон"
-          onAction={() => setShowForm(true)}
-        />
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Название</TableHead>
-              <TableHead>Единица</TableHead>
-              <TableHead>Классы</TableHead>
-              <TableHead>Направление</TableHead>
-              <TableHead>Тип</TableHead>
-              <TableHead>Границы</TableHead>
-              <TableHead>Статус</TableHead>
-              <TableHead align="right">Действия</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {templates.map((template) => (
-              <TableRow key={template.id}>
-                <TableCell className="font-medium">
-                  {template.name}
-                </TableCell>
-                <TableCell className="text-secondary">
-                  {template.unit}
-                </TableCell>
-                <TableCell className="text-secondary">
-                  {template.classFrom}–{template.classTo}
-                </TableCell>
-                <TableCell className="text-secondary">
-                  {template.direction === 'LOWER_IS_BETTER' ? 'Меньше = лучше' : 'Больше = лучше'}
-                </TableCell>
-                <TableCell>
-                  {template.ownerTrainerId ? (
-                    <Badge variant="info">
-                      Личный {template.ownerTrainer?.fullName ? `(${template.ownerTrainer.fullName})` : ''}
-                    </Badge>
-                  ) : template.isPublic ? (
-                    <Badge variant="success">
-                      Общий
-                    </Badge>
-                  ) : (
-                    <Badge variant="default">
-                      Личный
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-secondary">
-                  {template._count?.boundaries || 0}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={template.isActive ? 'success' : 'default'}>
-                    {template.isActive ? 'Активен' : 'Неактивен'}
-                  </Badge>
-                </TableCell>
-                <TableCell align="right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      onClick={() => loadTemplate(template.id)}
-                      variant="secondary"
-                      size="sm"
-                    >
-                      Редактировать
-                    </Button>
-                    <Button
-                      onClick={() => handleDelete(template.id)}
-                      variant="danger"
-                      size="sm"
-                    >
-                      Удалить
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </div>
+      <TemplatesTable
+        templates={templatesForTable}
+        showTypeColumn={true}
+        emptyMessage="Шаблоны нормативов пока не созданы"
+        emptyActionLabel="Добавить шаблон"
+        onEmptyAction={() => setShowForm(true)}
+        onEdit={(templateId) => loadTemplate(templateId)}
+        onDelete={(templateId) => handleDelete(templateId)}
+      />
+    </TemplatesLayout>
   )
 }

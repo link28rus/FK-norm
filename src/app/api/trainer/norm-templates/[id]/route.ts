@@ -157,7 +157,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, description, unit, classFrom, classTo, direction, isActive, boundaries } = body
+    const { name, description, unit, classFrom, classTo, direction, isActive, boundaries, applicableGender } = body
 
     // Валидация: тренер не может изменить ownerTrainerId или isPublic (только админ)
     const updateData: any = {}
@@ -168,6 +168,19 @@ export async function PUT(
     if (classTo !== undefined) updateData.classTo = classTo
     if (direction !== undefined) updateData.direction = direction
     if (isActive !== undefined) updateData.isActive = isActive
+    
+    // Валидация и обновление applicableGender
+    if (applicableGender !== undefined) {
+      const validGenders = ['ALL', 'MALE', 'FEMALE']
+      if (validGenders.includes(applicableGender)) {
+        updateData.applicableGender = applicableGender
+      } else {
+        return NextResponse.json(
+          { error: 'applicableGender должен быть ALL, MALE или FEMALE' },
+          { status: 400 }
+        )
+      }
+    }
 
     // Только админ может изменить ownerTrainerId и isPublic
     if (user.role === 'ADMIN') {

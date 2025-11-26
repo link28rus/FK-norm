@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { calcGrade, gradeToString } from '@/lib/normCalculator'
 import { convertGenderToEnglish } from '@/lib/genderConverter'
+import { Prisma } from '@prisma/client'
 
 // GET - получить групповой норматив с данными
 export async function GET(
@@ -23,10 +24,37 @@ export async function GET(
       )
     }
 
+    // Получаем applicableGender из GroupNorm или шаблона (приоритет у GroupNorm)
+    const applicableGenderData = await prisma.$queryRaw<Array<{
+      applicableGender: string | null
+      templateApplicableGender: string | null
+    }>>(
+      Prisma.sql`
+        SELECT 
+          gn."applicableGender",
+          t."applicableGender" as "templateApplicableGender"
+        FROM "group_norms" gn
+        LEFT JOIN "norm_templates" t ON t.id = gn."templateId"
+        WHERE gn.id = ${id}::text
+        LIMIT 1
+      `
+    )
+
+    const applicableGender = (applicableGenderData?.[0]?.applicableGender || applicableGenderData?.[0]?.templateApplicableGender || 'ALL') as 'ALL' | 'MALE' | 'FEMALE'
+
     const groupNorm = await prisma.groupNorm.findUnique({
       where: { id },
       include: {
-        template: true,
+        template: {
+          select: {
+            id: true,
+            name: true,
+            unit: true,
+            direction: true,
+            classFrom: true,
+            classTo: true,
+          },
+        },
         boundaries: true,
         group: {
           select: {
@@ -61,6 +89,32 @@ export async function GET(
         { error: 'Групповой норматив не найден' },
         { status: 404 }
       )
+    }
+
+    // Фильтруем учеников по applicableGender, если нужно
+    if (applicableGender !== 'ALL') {
+      const filteredAthletes = groupNorm.group.athletes.filter(athlete => {
+        const athleteGenderEnglish = convertGenderToEnglish(athlete.gender)
+        if (applicableGender === 'MALE') {
+          return athleteGenderEnglish === 'MALE'
+        }
+        if (applicableGender === 'FEMALE') {
+          return athleteGenderEnglish === 'FEMALE'
+        }
+        return true
+      })
+      // Обновляем список учеников в группе
+      groupNorm.group.athletes = filteredAthletes
+      // Фильтруем также существующие нормы
+      groupNorm.norms = groupNorm.norms.filter(norm => 
+        filteredAthletes.some(a => a.id === norm.athleteId)
+      )
+    }
+
+    // Добавляем applicableGender в ответ
+    ;(groupNorm as any).applicableGender = applicableGender
+    if (groupNorm.template) {
+      ;(groupNorm.template as any).applicableGender = applicableGenderData?.[0]?.templateApplicableGender || 'ALL'
     }
 
     return NextResponse.json({ groupNorm })
@@ -102,10 +156,18 @@ export async function POST(
       )
     }
 
+    // Получаем GroupNorm с шаблоном (включая applicableGender из шаблона)
     const groupNorm = await prisma.groupNorm.findUnique({
       where: { id },
       include: {
-        template: true,
+        template: {
+          select: {
+            id: true,
+            name: true,
+            unit: true,
+            direction: true,
+          },
+        },
         group: {
           select: {
             id: true,
@@ -133,6 +195,23 @@ export async function POST(
     const group = groupNorm.group
     const template = groupNorm.template
 
+    // Получаем applicableGender один раз для всех норм
+    const applicableGenderData = await prisma.$queryRaw<Array<{
+      applicableGender: string | null
+      templateApplicableGender: string | null
+    }>>(
+      Prisma.sql`
+        SELECT 
+          gn."applicableGender",
+          t."applicableGender" as "templateApplicableGender"
+        FROM "group_norms" gn
+        LEFT JOIN "norm_templates" t ON t.id = gn."templateId"
+        WHERE gn.id = ${id}::text
+        LIMIT 1
+      `
+    )
+    const applicableGender = (applicableGenderData?.[0]?.applicableGender || applicableGenderData?.[0]?.templateApplicableGender || 'ALL') as 'ALL' | 'MALE' | 'FEMALE'
+
     console.log('[POST group-norms/[id]] GroupNorm data:', {
       groupNormId: id,
       groupId: group.id,
@@ -142,6 +221,7 @@ export async function POST(
       templateName: template.name,
       templateDirection: template.direction,
       useCustomBoundaries: groupNorm.useCustomBoundaries,
+      applicableGender,
       athletesCount: group.athletes.length,
     })
 
@@ -158,7 +238,7 @@ export async function POST(
 
         // Если есть значение и нет явно указанной оценки, вычисляем её
         if (normData.value !== null && normData.value !== undefined && !finalStatus) {
-          // Проверяем наличие класса группы и пола ученика
+          // Проверяем наличие класса группы
           if (!group.class) {
             console.warn('[POST group-norms/[id]] Group class is not set:', {
               groupId: group.id,
@@ -168,15 +248,15 @@ export async function POST(
             })
           }
           
-          if (athlete.gender && group.class !== null && group.class !== undefined) {
-            // Преобразуем пол в нужный формат
-            const genderEnglish = convertGenderToEnglish(athlete.gender)
+          if (group.class !== null && group.class !== undefined) {
+            // Проверяем, что у ученика указан пол (нужен для applicableGender === 'ALL')
+            const athleteGender = convertGenderToEnglish(athlete.gender)
             
-            if (genderEnglish) {
+            if (athleteGender || applicableGender !== 'ALL') {
               console.log('[POST group-norms/[id]] Calculating grade:', {
                 value: normData.value,
-                gender: athlete.gender,
-                genderEnglish,
+                athleteGender: athlete.gender,
+                applicableGender,
                 class: group.class,
                 templateId: template.id,
                 groupNormId: id,
@@ -184,10 +264,11 @@ export async function POST(
               
               calculatedGrade = await calcGrade({
                 value: normData.value,
-                gender: genderEnglish,
+                gender: athlete.gender, // Фактический пол ученика
                 class: group.class,
                 templateId: template.id,
                 groupNormId: id,
+                applicableGender, // Для кого норматив по полу (функция сама определит, какой пол использовать)
               })
               
               console.log('[POST group-norms/[id]] Calculated grade:', calculatedGrade)
@@ -273,6 +354,206 @@ export async function POST(
     return NextResponse.json({ success: true, norms: updates })
   } catch (error: any) {
     console.error('Update group norm results error:', error)
+    return NextResponse.json(
+      { error: error.message || 'Внутренняя ошибка сервера' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * PATCH - обновить метаданные группового норматива (дата, период, переопределения)
+ * 
+ * Позволяет изменить:
+ * - testDate - дата зачёта
+ * - period - период норматива ('START_OF_YEAR' | 'END_OF_YEAR' | 'REGULAR')
+ * - nameOverride - переопределение названия
+ * - unitOverride - переопределение единицы измерения
+ * 
+ * При изменении периода проверяется, что не создаётся конфликт с существующими нормативами.
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ groupId: string; id: string }> | { groupId: string; id: string } }
+) {
+  try {
+    const resolvedParams = await Promise.resolve(params)
+    const { groupId, id } = resolvedParams
+
+    const user = await getCurrentUser(request)
+
+    if (!user || (user.role !== 'TRAINER' && user.role !== 'ADMIN')) {
+      return NextResponse.json(
+        { error: 'Доступ запрещён' },
+        { status: 403 }
+      )
+    }
+
+    // Проверяем доступ к группе
+    let profile = await prisma.trainerProfile.findUnique({
+      where: { userId: user.id },
+    })
+
+    if (user.role === 'ADMIN' && !profile) {
+      profile = await prisma.trainerProfile.create({
+        data: {
+          userId: user.id,
+          fullName: user.email.split('@')[0],
+          phone: null,
+        },
+      })
+    }
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: 'Профиль не найден' },
+        { status: 404 }
+      )
+    }
+
+    // Проверяем, что GroupNorm принадлежит этой группе
+    const existingGroupNorm = await prisma.groupNorm.findFirst({
+      where: {
+        id,
+        group: user.role === 'ADMIN'
+          ? { id: groupId }
+          : {
+              id: groupId,
+              trainerId: profile.id,
+            },
+      },
+      include: {
+        group: {
+          select: {
+            id: true,
+            schoolYear: true,
+          },
+        },
+        template: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    })
+
+    if (!existingGroupNorm) {
+      return NextResponse.json(
+        { error: 'Групповой норматив не найден' },
+        { status: 404 }
+      )
+    }
+
+    const body = await request.json()
+    const { testDate, period, nameOverride, unitOverride, applicableGender } = body
+
+    // Подготавливаем данные для обновления
+    const updateData: any = {}
+
+    if (testDate !== undefined) {
+      updateData.testDate = new Date(testDate)
+    }
+
+    if (applicableGender !== undefined) {
+      // Валидация applicableGender
+      const validGenders = ['ALL', 'MALE', 'FEMALE']
+      if (validGenders.includes(applicableGender)) {
+        // Используем raw SQL для обновления, так как Prisma Client может не знать о поле до регенерации
+        await prisma.$executeRaw(Prisma.sql`
+          UPDATE "group_norms"
+          SET "applicableGender" = ${applicableGender}::"NormApplicableGender",
+              "updatedAt" = NOW()
+          WHERE id = ${id}::text
+        `)
+      } else {
+        return NextResponse.json(
+          { error: `Недопустимое значение applicableGender. Допустимые значения: ${validGenders.join(', ')}` },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (period !== undefined) {
+      // Валидация периода
+      const validPeriods = ['START_OF_YEAR', 'END_OF_YEAR', 'REGULAR']
+      if (!validPeriods.includes(period)) {
+        return NextResponse.json(
+          { error: `Недопустимое значение period. Допустимые значения: ${validPeriods.join(', ')}` },
+          { status: 400 }
+        )
+      }
+
+      // Если период меняется, проверяем, нет ли конфликта
+      // Используем SQL напрямую, так как Prisma Client еще не знает о поле period до регенерации
+      const currentPeriod = (existingGroupNorm as any).period || 'REGULAR'
+      if (period !== currentPeriod) {
+        const conflictingGroupNorm = await prisma.$queryRaw<any[]>`
+          SELECT gn.* FROM "group_norms" gn
+          INNER JOIN "groups" g ON g.id = gn."groupId"
+          WHERE gn."groupId" = ${groupId}::text
+            AND gn."templateId" = ${existingGroupNorm.templateId}::text
+            AND gn."period" = ${period}::"NormPeriod"
+            AND g."schoolYear" = ${existingGroupNorm.group.schoolYear}::text
+            AND gn.id != ${id}::text
+          LIMIT 1
+        `
+
+        if (conflictingGroupNorm && conflictingGroupNorm.length > 0) {
+          const periodNames: Record<string, string> = {
+            START_OF_YEAR: 'начала года',
+            END_OF_YEAR: 'конца года',
+            REGULAR: 'обычный',
+          }
+          return NextResponse.json(
+            { 
+              error: `Норматив для ${periodNames[period] || 'этого периода'} уже существует для этой группы и шаблона в учебном году ${existingGroupNorm.group.schoolYear}.`,
+              conflictingGroupNormId: conflictingGroupNorm[0]?.id,
+            },
+            { status: 409 } // 409 Conflict
+          )
+        }
+      }
+
+      ;(updateData as any).period = period
+    }
+
+    if (nameOverride !== undefined) {
+      updateData.nameOverride = nameOverride || null
+    }
+
+    if (unitOverride !== undefined) {
+      updateData.unitOverride = unitOverride || null
+    }
+
+    // Если нечего обновлять
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: 'Нет данных для обновления' },
+        { status: 400 }
+      )
+    }
+
+    // Обновляем групповой норматив
+    // Используем as any для обхода ограничений Prisma Client до регенерации
+    const updatedGroupNorm = await prisma.groupNorm.update({
+      where: { id },
+      data: updateData as any,
+      include: {
+        template: true,
+        boundaries: true,
+        group: {
+          select: {
+            id: true,
+            name: true,
+            schoolYear: true,
+          },
+        },
+      },
+    }) as any
+
+    return NextResponse.json({ success: true, groupNorm: updatedGroupNorm })
+  } catch (error: any) {
+    console.error('Update group norm error:', error)
     return NextResponse.json(
       { error: error.message || 'Внутренняя ошибка сервера' },
       { status: 500 }

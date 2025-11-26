@@ -182,14 +182,39 @@ export default function AthleteDetailPage({
         <Alert variant="error" message={error} />
       )}
 
+      {/* Кнопка возврата к группе — для быстрого возврата тренера на страницу группы */}
+      {athlete.groupId && (
+        <div className="mb-4">
+          <Button
+            onClick={() => router.push(`/trainer/groups/${athlete.groupId}`)}
+            variant="secondary"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            ← Назад к группе
+          </Button>
+        </div>
+      )}
+
       {/* Заголовок страницы */}
       <div className="mb-4">
-        <h1 className="h1">{athlete.fullName}</h1>
-        {athlete.group && (
-          <p className="mt-1 text-sm text-secondary">
-            {athlete.group.name} · учебный год {athlete.group.schoolYear || athlete.schoolYear}
-          </p>
-        )}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <h1 className="h1">{athlete.fullName}</h1>
+            {athlete.group && (
+              <p className="mt-1 text-sm text-secondary">
+                {athlete.group.name} · учебный год {athlete.group.schoolYear || athlete.schoolYear}
+              </p>
+            )}
+          </div>
+          <Button
+            onClick={() => router.push(`/trainer/athletes/${athleteId}/progress`)}
+            variant="primary"
+            size="sm"
+          >
+            Прогресс по нормативам
+          </Button>
+        </div>
       </div>
 
       {/* Данные учащегося */}

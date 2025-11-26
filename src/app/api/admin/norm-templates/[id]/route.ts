@@ -69,7 +69,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, description, unit, classFrom, classTo, direction, isActive, boundaries, ownerTrainerId, isPublic } = body
+    const { name, description, unit, classFrom, classTo, direction, isActive, boundaries, ownerTrainerId, isPublic, applicableGender } = body
 
     // Валидация: если шаблон общий, ownerTrainerId должен быть null
     if (isPublic === true && ownerTrainerId !== null && ownerTrainerId !== undefined) {
@@ -94,6 +94,16 @@ export async function PUT(
         updateData.ownerTrainerId = ownerTrainerId === null || ownerTrainerId === '' ? null : ownerTrainerId
       }
       if (isPublic !== undefined) updateData.isPublic = isPublic
+      
+      // Валидация и обновление applicableGender
+      if (applicableGender !== undefined) {
+        const validGenders = ['ALL', 'MALE', 'FEMALE']
+        if (validGenders.includes(applicableGender)) {
+          updateData.applicableGender = applicableGender
+        } else {
+          throw new Error('applicableGender должен быть ALL, MALE или FEMALE')
+        }
+      }
 
       const updatedTemplate = await tx.normTemplate.update({
         where: { id: params.id },

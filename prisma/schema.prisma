@@ -10,6 +10,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Период проведения норматива
+// Используется для контрольных замеров в начале и конце учебного года
+enum NormPeriod {
+  START_OF_YEAR // Замер в начале учебного года (контрольный норматив начала года)
+  END_OF_YEAR // Замер в конце учебного года (контрольный норматив конца года)
+  REGULAR // Обычный норматив/замер в течение учебного года
+}
+
+// Для кого применим норматив по полу
+// Используется для указания, для каких полов предназначен норматив
+enum NormApplicableGender {
+  ALL    // Для всех полов
+  MALE   // Только для мальчиков
+  FEMALE // Только для девочек
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -33,9 +49,9 @@ model TrainerProfile {
   notes     String?
   createdAt DateTime @default(now())
 
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  groups         Group[]
-  normTemplates  NormTemplate[] @relation("NormTemplateOwner")
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groups        Group[]
+  normTemplates NormTemplate[] @relation("NormTemplateOwner")
 
   @@map("trainer_profiles")
 }
@@ -97,20 +113,21 @@ model Norm {
 
 // Шаблон норматива
 model NormTemplate {
-  id             String   @id @default(cuid())
-  name           String // "Бег 30 м с высокого старта"
-  description    String?
-  unit           String // "сек" | "м" | "раз" | "без учета времени"
-  classFrom      Int // Начальный класс (например, 2)
-  classTo        Int // Конечный класс (например, 4)
-  direction      String // "LOWER_IS_BETTER" | "HIGHER_IS_BETTER"
-  ownerTrainerId String? // Если не null — личный шаблон тренера
-  isPublic       Boolean  @default(false) // true — общий шаблон, false — личный
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String              @id @default(cuid())
+  name             String // "Бег 30 м с высокого старта"
+  description      String?
+  unit             String // "сек" | "м" | "раз" | "без учета времени"
+  classFrom        Int // Начальный класс (например, 2)
+  classTo          Int // Конечный класс (например, 4)
+  direction        String // "LOWER_IS_BETTER" | "HIGHER_IS_BETTER"
+  applicableGender NormApplicableGender @default(ALL) // Для кого норматив по полу (для всех, только мальчики, только девочки)
+  ownerTrainerId   String? // Если не null — личный шаблон тренера
+  isPublic         Boolean  @default(false) // true — общий шаблон, false — личный
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  ownerTrainer TrainerProfile? @relation("NormTemplateOwner", fields: [ownerTrainerId], references: [id], onDelete: Cascade)
+  ownerTrainer TrainerProfile?        @relation("NormTemplateOwner", fields: [ownerTrainerId], references: [id], onDelete: Cascade)
   boundaries   NormTemplateBoundary[]
   groupNorms   GroupNorm[]
   norms        Norm[]
@@ -135,16 +152,23 @@ model NormTemplateBoundary {
 }
 
 // Групповой норматив (на основе шаблона)
+// Период (period) хранится только здесь, так как это характеристика самого норматива.
+// Все результаты учеников (Norm), связанные с этим GroupNorm через groupNormId,
+// автоматически наследуют период группового норматива.
+// Индивидуальные нормативы (без связи с GroupNorm) всегда считаются REGULAR.
+// applicableGender копируется из шаблона при создании группового норматива.
 model GroupNorm {
-  id                  String   @id @default(cuid())
+  id                  String              @id @default(cuid())
   groupId             String
   templateId          String
   testDate            DateTime // Дата зачёта
   nameOverride        String? // Переопределение названия
   unitOverride        String? // Переопределение единицы измерения
-  useCustomBoundaries Boolean  @default(false) // Использовать кастомные границы
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  useCustomBoundaries Boolean    @default(false) // Использовать кастомные границы
+  period              NormPeriod @default(REGULAR) // Период проведения норматива (начало/конец года или обычный)
+  applicableGender    NormApplicableGender @default(ALL) // Для кого норматив по полу (копируется из шаблона при создании)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
   group      Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
   template   NormTemplate        @relation(fields: [templateId], references: [id], onDelete: Restrict)

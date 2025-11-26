@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, description, unit, classFrom, classTo, direction, boundaries } = body
+    const { name, description, unit, classFrom, classTo, direction, boundaries, applicableGender } = body
 
     if (!name || !unit || classFrom === undefined || classTo === undefined || !direction) {
       return NextResponse.json(
@@ -133,6 +133,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Валидация applicableGender
+    const validGenders = ['ALL', 'MALE', 'FEMALE']
+    const finalApplicableGender = applicableGender && validGenders.includes(applicableGender)
+      ? applicableGender
+      : 'ALL' // По умолчанию для всех
 
     // Валидация классов
     if (classFrom < 1 || classTo < 1 || classFrom > classTo) {
@@ -157,6 +163,7 @@ export async function POST(request: NextRequest) {
           classFrom,
           classTo,
           direction,
+          applicableGender: finalApplicableGender as any,
           ownerTrainerId,
           isPublic,
           isActive: true,

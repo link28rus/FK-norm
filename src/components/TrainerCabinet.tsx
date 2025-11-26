@@ -332,64 +332,9 @@ export default function TrainerCabinet({ userRole }: TrainerCabinetProps = {}) {
 
   return (
     <div>
-      <div className="mb-4 no-print">
-        <h1 className="h1">Кабинет тренера</h1>
-      </div>
-      {/* Табы */}
-      <div className="border-b border-gray-200 mb-6 no-print">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'profile'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Профиль
-            </button>
-            <button
-              onClick={() => router.push('/trainer/groups')}
-              className="py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            >
-              Группы
-            </button>
-            <button
-              onClick={() => router.push('/trainer/norm-templates')}
-              className="py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            >
-              Мои шаблоны
-            </button>
-            {selectedGroup && activeTab === 'group-detail' && (
-              <button
-                onClick={() => setActiveTab('group-detail')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'group-detail'
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {selectedGroup}
-              </button>
-            )}
-            {selectedAthlete && (
-              <button
-                onClick={() => setActiveTab('athlete-detail')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'athlete-detail'
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {selectedAthlete.fullName}
-              </button>
-            )}
-          </nav>
-        </div>
-
-        {error && (
-          <Alert variant="error" message={error} className="mb-4" />
-        )}
+      {error && (
+        <Alert variant="error" message={error} className="mb-4" />
+      )}
 
         {/* Профиль */}
         {activeTab === 'profile' && profile && (
