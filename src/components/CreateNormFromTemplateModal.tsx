@@ -28,6 +28,15 @@ interface CreateNormFromTemplateModalProps {
   onSuccess: () => void
 }
 
+/**
+ * Очищает имя шаблона от пометок в квадратных скобках
+ * Убирает всё в квадратных скобках: [Личный – ...] или [ .... ]
+ */
+function cleanTemplateName(name: string): string {
+  // Убираем всё в квадратных скобках: [Личный – ...] или [ .... ]
+  return name.replace(/\[.*?\]\s*/g, "").trim()
+}
+
 export default function CreateNormFromTemplateModal({
   groupId,
   groupClass,
@@ -235,14 +244,11 @@ export default function CreateNormFromTemplateModal({
                             {commonTemplates.length > 0 && (
                               <optgroup label="Общие нормативы (мальчики и девочки)">
                                 {commonTemplates.map((template) => {
-                                  const templateType = template.ownerTrainerId 
-                                    ? `[Личный${template.ownerTrainer?.fullName ? ` - ${template.ownerTrainer.fullName}` : ''}]`
-                                    : template.isPublic 
-                                    ? '[Общий]'
-                                    : '[Личный]'
+                                  // Убираем пометки в квадратных скобках и классы из названия (если есть)
+                                  const pureName = cleanTemplateName(template.name).replace(/\(классы.*?\)/gi, "").trim()
                                   return (
                                     <option key={template.id} value={template.id}>
-                                      {templateType} {template.name} ({template.unit}, классы {template.classFrom}-{template.classTo})
+                                      {pureName} (классы {template.classFrom}-{template.classTo})
                                     </option>
                                   )
                                 })}
@@ -251,14 +257,11 @@ export default function CreateNormFromTemplateModal({
                             {maleTemplates.length > 0 && (
                               <optgroup label="Нормативы только для мальчиков">
                                 {maleTemplates.map((template) => {
-                                  const templateType = template.ownerTrainerId 
-                                    ? `[Личный${template.ownerTrainer?.fullName ? ` - ${template.ownerTrainer.fullName}` : ''}]`
-                                    : template.isPublic 
-                                    ? '[Общий]'
-                                    : '[Личный]'
+                                  // Убираем пометки в квадратных скобках и классы из названия (если есть)
+                                  const pureName = cleanTemplateName(template.name).replace(/\(классы.*?\)/gi, "").trim()
                                   return (
                                     <option key={template.id} value={template.id}>
-                                      {templateType} {template.name} ({template.unit}, классы {template.classFrom}-{template.classTo})
+                                      {pureName} (классы {template.classFrom}-{template.classTo})
                                     </option>
                                   )
                                 })}
@@ -267,14 +270,11 @@ export default function CreateNormFromTemplateModal({
                             {femaleTemplates.length > 0 && (
                               <optgroup label="Нормативы только для девочек">
                                 {femaleTemplates.map((template) => {
-                                  const templateType = template.ownerTrainerId 
-                                    ? `[Личный${template.ownerTrainer?.fullName ? ` - ${template.ownerTrainer.fullName}` : ''}]`
-                                    : template.isPublic 
-                                    ? '[Общий]'
-                                    : '[Личный]'
+                                  // Убираем пометки в квадратных скобках и классы из названия (если есть)
+                                  const pureName = cleanTemplateName(template.name).replace(/\(классы.*?\)/gi, "").trim()
                                   return (
                                     <option key={template.id} value={template.id}>
-                                      {templateType} {template.name} ({template.unit}, классы {template.classFrom}-{template.classTo})
+                                      {pureName} (классы {template.classFrom}-{template.classTo})
                                     </option>
                                   )
                                 })}

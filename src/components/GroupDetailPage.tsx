@@ -22,6 +22,13 @@ interface Athlete {
   uinGto?: string | null
 }
 
+interface WithdrawnAthlete {
+  id: string
+  fullName: string
+  exitReason: string | null
+  exitDate: string | null
+}
+
 export default function GroupDetailPage({
   groupId,
   userFullName,
@@ -47,10 +54,21 @@ export default function GroupDetailPage({
   })
   const [submittingAthlete, setSubmittingAthlete] = useState(false)
   const [athleteFieldErrors, setAthleteFieldErrors] = useState<{ fullName?: string; gender?: string }>({})
+  
+  // Состояние для модалки выбытия ученика
+  const [withdrawStudent, setWithdrawStudent] = useState<Athlete | null>(null)
+  const [exitReason, setExitReason] = useState('')
+  const [exitDate, setExitDate] = useState<string>(() => new Date().toISOString().slice(0, 10))
+  const [savingWithdraw, setSavingWithdraw] = useState(false)
+  const [errorWithdraw, setErrorWithdraw] = useState<string | null>(null)
+  
+  // Состояние для списка выбывших учеников
+  const [withdrawnAthletes, setWithdrawnAthletes] = useState<WithdrawnAthlete[]>([])
 
   useEffect(() => {
     loadGroup()
     loadAthletes()
+    loadWithdrawnAthletes()
   }, [groupId])
 
   const loadGroup = async () => {
@@ -184,6 +202,75 @@ export default function GroupDetailPage({
     } catch (err) {
       setError('Ошибка соединения с сервером')
       console.error('Import error:', err)
+    }
+  }
+
+  const loadWithdrawnAthletes = async () => {
+    try {
+      const response = await fetch(`/api/trainer/groups/${groupId}/athletes?includeWithdrawn=true`)
+      if (!response.ok) throw new Error('Ошибка загрузки')
+      const data = await response.json()
+      // Фильтруем только выбывших (isActive = false и есть exitReason или exitDate)
+      const withdrawn = (data.athletes || []).filter((a: any) => 
+        !a.isActive && (a.exitReason || a.exitDate)
+      ).map((a: any) => ({
+        id: a.id,
+        fullName: a.fullName,
+        exitReason: a.exitReason,
+        exitDate: a.exitDate,
+      }))
+      setWithdrawnAthletes(withdrawn)
+    } catch (err) {
+      console.error('Ошибка загрузки выбывших учеников:', err)
+    }
+  }
+
+  const openWithdrawModal = (student: Athlete) => {
+    setWithdrawStudent(student)
+    setExitReason('')
+    setExitDate(new Date().toISOString().slice(0, 10))
+    setErrorWithdraw(null)
+  }
+
+  const handleConfirmWithdraw = async () => {
+    if (!withdrawStudent) return
+
+    setSavingWithdraw(true)
+    setErrorWithdraw(null)
+
+    try {
+      const res = await fetch(
+        `/api/trainer/groups/${groupId}/athletes/${withdrawStudent.id}/withdraw`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exitReason, exitDate }),
+        }
+      )
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error ?? 'Не удалось отметить выбытие ученика')
+      }
+
+      toast.success('Ученик отмечен как выбывший')
+      await loadAthletes()
+      await loadWithdrawnAthletes()
+      setWithdrawStudent(null)
+    } catch (e: any) {
+      setErrorWithdraw(e.message ?? 'Ошибка при выбытии ученика')
+    } finally {
+      setSavingWithdraw(false)
+    }
+  }
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '—'
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    } catch {
+      return '—'
     }
   }
 
@@ -411,6 +498,12 @@ export default function GroupDetailPage({
                       >
                         Открыть
                       </Button>
+                      <button
+                        onClick={() => openWithdrawModal(athlete)}
+                        className="text-sm text-red-600 hover:text-red-800 px-3 py-1.5 rounded-md border border-red-300 hover:bg-red-50 transition-colors"
+                      >
+                        Выбыл
+                      </button>
                       <Button
                         onClick={() => handleDeleteAthlete(athlete.id)}
                         variant="danger"
@@ -426,6 +519,134 @@ export default function GroupDetailPage({
             )}
           </TableBody>
         </Table>
+
+        {/* Модалка выбытия ученика */}
+        {withdrawStudent && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              <div
+                className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+                onClick={() => setWithdrawStudent(null)}
+              />
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="h3">Выбытие ученика</h3>
+                    <button
+                      type="button"
+                      onClick={() => setWithdrawStudent(null)}
+                      className="text-gray-400 hover:text-gray-500"
+                    >
+                      <span className="sr-only">Закрыть</span>
+                      <svg
+                        className="h-6 w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-700">
+                      Ученик: <span className="font-medium">{withdrawStudent.fullName}</span>
+                    </p>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Причина выбытия *
+                      </label>
+                      <textarea
+                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        rows={3}
+                        value={exitReason}
+                        onChange={(e) => setExitReason(e.target.value)}
+                        placeholder="Укажите причину выбытия ученика"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Дата выбытия
+                      </label>
+                      <input
+                        type="date"
+                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        value={exitDate}
+                        onChange={(e) => setExitDate(e.target.value)}
+                      />
+                    </div>
+
+                    {errorWithdraw && (
+                      <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 border border-red-200">
+                        {errorWithdraw}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end gap-2 pt-4">
+                      <button
+                        type="button"
+                        className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        onClick={() => setWithdrawStudent(null)}
+                        disabled={savingWithdraw}
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={savingWithdraw || !exitReason.trim()}
+                        onClick={handleConfirmWithdraw}
+                      >
+                        {savingWithdraw ? 'Сохраняем...' : 'Подтвердить выбытие'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Блок "Выбывшие ученики" */}
+        {withdrawnAthletes.length > 0 && (
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-4">Выбывшие ученики</h3>
+            <div className="bg-white shadow rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ФИО</TableHead>
+                    <TableHead>Дата выбытия</TableHead>
+                    <TableHead>Причина</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {withdrawnAthletes.map((athlete) => (
+                    <TableRow key={athlete.id}>
+                      <TableCell className="font-medium">
+                        {athlete.fullName}
+                      </TableCell>
+                      <TableCell className="text-secondary">
+                        {formatDate(athlete.exitDate)}
+                      </TableCell>
+                      <TableCell className="text-secondary">
+                        {athlete.exitReason || '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

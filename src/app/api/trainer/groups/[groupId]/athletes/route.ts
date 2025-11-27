@@ -60,10 +60,31 @@ export async function GET(
       )
     }
 
+    // Проверяем query-параметр для включения выбывших учеников
+    const { searchParams } = new URL(request.url)
+    const includeWithdrawn = searchParams.get('includeWithdrawn') === 'true'
+
+    // Формируем условие where
+    const whereCondition: any = { groupId }
+    
+    if (!includeWithdrawn) {
+      // По умолчанию показываем только активных
+      whereCondition.isActive = true
+    }
+    // Если includeWithdrawn=true, возвращаем всех (активных и неактивных)
+
     const athletes = await prisma.athlete.findMany({
-      where: { 
-        groupId,
-        isActive: true, // Только активные ученики
+      where: whereCondition,
+      select: {
+        id: true,
+        fullName: true,
+        birthDate: true,
+        gender: true,
+        notes: true,
+        uinGto: true,
+        isActive: true,
+        exitReason: true,
+        exitDate: true,
       },
       orderBy: { fullName: 'asc' },
     })

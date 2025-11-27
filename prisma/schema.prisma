@@ -12,6 +12,11 @@ datasource db {
 
 // Период проведения норматива
 // Используется для контрольных замеров в начале и конце учебного года
+// Соответствие значениям в UI:
+//   - REGULAR → "Обычный норматив"
+//   - START_OF_YEAR → "Контрольный замер начала года"
+//   - END_OF_YEAR → "Контрольный замер конца года"
+// Поле period хранится в модели GroupNorm (строка 170)
 enum NormPeriod {
   START_OF_YEAR // Замер в начале учебного года (контрольный норматив начала года)
   END_OF_YEAR // Замер в конце учебного года (контрольный норматив конца года)
@@ -84,6 +89,8 @@ model Athlete {
   uinGto     String?   @db.VarChar(20) // УИН ГТО в формате 00-00-0000000, опционально
   schoolYear String    @default("2024/2025") // Должен совпадать с годом группы
   isActive   Boolean   @default(true) // Soft delete: false означает, что ученик удалён из системы
+  exitReason String?   @db.VarChar(255) // Причина выбытия ученика
+  exitDate   DateTime? // Дата выбытия ученика
   createdAt  DateTime  @default(now())
 
   group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)

@@ -35,6 +35,11 @@ export default function TrainerLayout({
       label: 'Шаблоны нормативов',
       active: pathname?.startsWith('/trainer/norm-templates'),
     },
+    {
+      href: '/trainer/control-best',
+      label: 'Лучшие результаты контрольных замеров',
+      active: pathname?.startsWith('/trainer/control-best'),
+    },
   ]
 
   const handleLogout = async () => {
