@@ -88,6 +88,9 @@ model Athlete {
   notes      String?
   uinGto     String?   @db.VarChar(20) // УИН ГТО в формате 00-00-0000000, опционально
   schoolYear String    @default("2024/2025") // Должен совпадать с годом группы
+  height     Int?      // Рост (см)
+  weight     Int?      // Вес (кг)
+  shoeSize   Float?    // Размер обуви (возможно дробный — например 36.5)
   isActive   Boolean   @default(true) // Soft delete: false означает, что ученик удалён из системы
   exitReason String?   @db.VarChar(255) // Причина выбытия ученика
   exitDate   DateTime? // Дата выбытия ученика

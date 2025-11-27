@@ -16,6 +16,9 @@ interface EditAthleteModalProps {
   athleteGender?: string | null
   athleteNotes?: string | null
   athleteUinGto?: string | null
+  athleteHeight?: number | null
+  athleteWeight?: number | null
+  athleteShoeSize?: number | null
   athleteGroupId: string
   athleteSchoolYear: string
   isOpen: boolean
@@ -30,6 +33,9 @@ export default function EditAthleteModal({
   athleteGender,
   athleteNotes,
   athleteUinGto,
+  athleteHeight,
+  athleteWeight,
+  athleteShoeSize,
   athleteGroupId,
   athleteSchoolYear,
   isOpen,
@@ -48,6 +54,9 @@ export default function EditAthleteModal({
   const [gender, setGender] = useState(athleteGender || '')
   const [notes, setNotes] = useState(athleteNotes || '')
   const [uinGto, setUinGto] = useState(athleteUinGto || '')
+  const [height, setHeight] = useState(athleteHeight?.toString() || '')
+  const [weight, setWeight] = useState(athleteWeight?.toString() || '')
+  const [shoeSize, setShoeSize] = useState(athleteShoeSize?.toString() || '')
   const [groupId, setGroupId] = useState(athleteGroupId)
 
   // Инициализируем данные при открытии модального окна
@@ -60,11 +69,14 @@ export default function EditAthleteModal({
       setGender(athleteGender || '')
       setNotes(athleteNotes || '')
       setUinGto(athleteUinGto || '')
+      setHeight(athleteHeight?.toString() || '')
+      setWeight(athleteWeight?.toString() || '')
+      setShoeSize(athleteShoeSize?.toString() || '')
       setGroupId(athleteGroupId)
       setError('')
       loadGroups()
     }
-  }, [isOpen, athleteFullName, athleteBirthDate, athleteGender, athleteNotes, athleteUinGto, athleteGroupId])
+  }, [isOpen, athleteFullName, athleteBirthDate, athleteGender, athleteNotes, athleteUinGto, athleteHeight, athleteWeight, athleteShoeSize, athleteGroupId])
 
   const loadGroups = async () => {
     setLoadingGroups(true)
@@ -103,6 +115,9 @@ export default function EditAthleteModal({
           gender: gender || null,
           notes: notes.trim() || null,
           uinGto: uinGto.trim() || null,
+          height: height.trim() ? parseInt(height.trim(), 10) : null,
+          weight: weight.trim() ? parseInt(weight.trim(), 10) : null,
+          shoeSize: shoeSize.trim() ? parseFloat(shoeSize.trim()) : null,
           groupId: groupId,
         }),
       })
@@ -218,6 +233,55 @@ export default function EditAthleteModal({
                     placeholder="00-00-0000000"
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white text-gray-900 px-3 py-2 border"
                     disabled={loading}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-1">
+                    Рост (см)
+                  </label>
+                  <input
+                    type="number"
+                    min="50"
+                    max="250"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white text-gray-900 px-3 py-2 border"
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value)}
+                    disabled={loading}
+                    placeholder="Например: 165"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-1">
+                    Вес (кг)
+                  </label>
+                  <input
+                    type="number"
+                    min="10"
+                    max="200"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white text-gray-900 px-3 py-2 border"
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
+                    disabled={loading}
+                    placeholder="Например: 55"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-1">
+                    Размер обуви
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="15"
+                    max="50"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white text-gray-900 px-3 py-2 border"
+                    value={shoeSize}
+                    onChange={(e) => setShoeSize(e.target.value)}
+                    disabled={loading}
+                    placeholder="Например: 38 или 36.5"
                   />
                 </div>
 

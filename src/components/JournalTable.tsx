@@ -6,6 +6,8 @@ import JournalLegend from './JournalLegend'
 interface Athlete {
   id: string
   fullName: string
+  isActive: boolean
+  exitDate: string | null // ISO string from API
 }
 
 interface Lesson {
@@ -131,12 +133,53 @@ export default function JournalTable({ groupId }: { groupId: string }) {
     }
   }
 
+  // Функция для проверки статуса ученика относительно выбранного месяца
+  const getAthleteStatus = useCallback((athlete: Athlete) => {
+    const exitDate = athlete.exitDate ? new Date(athlete.exitDate) : null
+    const isWithdrawn = athlete.isActive === false && !!exitDate
+
+    if (!isWithdrawn) {
+      return { isMonthAfterExit: false, isExitMonth: false, isMonthBeforeExit: false, isReadonly: false }
+    }
+
+    const exitYear = exitDate!.getFullYear()
+    const exitMonth = exitDate!.getMonth() + 1 // JS: 0-11, у нас 1-12
+
+    const isMonthAfterExit =
+      selectedYear > exitYear ||
+      (selectedYear === exitYear && selectedMonth > exitMonth)
+
+    const isExitMonth =
+      selectedYear === exitYear && selectedMonth === exitMonth
+
+    const isMonthBeforeExit =
+      selectedYear < exitYear ||
+      (selectedYear === exitYear && selectedMonth < exitMonth)
+
+    return {
+      isMonthAfterExit,
+      isExitMonth,
+      isMonthBeforeExit,
+      isReadonly: isExitMonth && isWithdrawn,
+    }
+  }, [selectedYear, selectedMonth])
+
   const handleMarkChange = useCallback(async (
     day: number,
     athleteId: string,
     newCode: string | null
   ) => {
     if (!data) return
+
+    // Проверяем, можно ли редактировать оценку для этого ученика
+    const athlete = data.athletes.find(a => a.id === athleteId)
+    if (athlete) {
+      const status = getAthleteStatus(athlete)
+      if (status.isReadonly) {
+        // Не позволяем изменять оценки для выбывших учеников в месяце выбытия
+        return
+      }
+    }
 
     setError('')
     const requestKey = getRequestKey(day, athleteId)
@@ -304,10 +347,21 @@ export default function JournalTable({ groupId }: { groupId: string }) {
       }
     }, 300) // Debounce 300ms
 
-  }, [data, groupId, selectedYear, selectedMonth])
+  }, [data, groupId, selectedYear, selectedMonth, getAthleteStatus])
 
-  const handleDoubleClick = (day: number, athleteId: string) => {
+  const handleDoubleClick = useCallback((day: number, athleteId: string) => {
     if (!data) return
+    
+    // Проверяем, можно ли редактировать оценку для этого ученика
+    const athlete = data.athletes.find(a => a.id === athleteId)
+    if (athlete) {
+      const status = getAthleteStatus(athlete)
+      if (status.isReadonly) {
+        // Не открываем модалку редактирования для выбывших учеников в месяце выбытия
+        return
+      }
+    }
+    
     const dayData = data.days.find((d) => d.day === day)
     const marks = dayData?.marks[athleteId] || { code: null, code2: null }
     setEditingMarks({
@@ -316,10 +370,21 @@ export default function JournalTable({ groupId }: { groupId: string }) {
       code: marks.code,
       code2: marks.code2,
     })
-  }
+  }, [data, getAthleteStatus])
 
-  const handleSaveMarks = async () => {
+  const handleSaveMarks = useCallback(async () => {
     if (!data || !editingMarks) return
+
+    // Проверяем, можно ли редактировать оценку для этого ученика
+    const athlete = data.athletes.find(a => a.id === editingMarks.athleteId)
+    if (athlete) {
+      const status = getAthleteStatus(athlete)
+      if (status.isReadonly) {
+        // Не позволяем сохранять оценки для выбывших учеников в месяце выбытия
+        setEditingMarks(null)
+        return
+      }
+    }
 
     setError('')
     const requestKey = getRequestKey(editingMarks.day, editingMarks.athleteId)
@@ -466,7 +531,7 @@ export default function JournalTable({ groupId }: { groupId: string }) {
           })
       }
     }
-  }
+  }, [getAthleteStatus])
 
   const formatMarkDisplay = (code: string | null, code2: string | null): string => {
     if (!code2 || code2 === '' || code2 === null) {
@@ -542,6 +607,13 @@ export default function JournalTable({ groupId }: { groupId: string }) {
   }
 
   const monthName = months[selectedMonth - 1]
+
+  // Фильтруем учеников: исключаем тех, кто выбыл до выбранного месяца
+  const filteredAthletes = data.athletes.filter((athlete) => {
+    const status = getAthleteStatus(athlete)
+    // В месяцах после выбытия не показываем ученика
+    return !status.isMonthAfterExit
+  })
 
   return (
     <div>
@@ -626,7 +698,7 @@ export default function JournalTable({ groupId }: { groupId: string }) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {data.athletes.length === 0 ? (
+              {filteredAthletes.length === 0 ? (
                 <tr>
                   <td
                     colSpan={data.days.length + 1}
@@ -636,9 +708,19 @@ export default function JournalTable({ groupId }: { groupId: string }) {
                   </td>
                 </tr>
               ) : (
-                data.athletes.map((athlete) => (
-                  <tr key={athlete.id}>
-                    <td className="sticky left-0 z-40 bg-white px-4 py-3 text-sm font-medium text-gray-900 border-r border-gray-200">
+                filteredAthletes.map((athlete) => {
+                  const status = getAthleteStatus(athlete)
+                  const rowClassName = status.isExitMonth
+                    ? 'bg-gray-50 text-gray-400'
+                    : ''
+
+                  return (
+                  <tr key={athlete.id} className={rowClassName}>
+                    <td className={`sticky left-0 z-40 px-4 py-3 text-sm font-medium border-r border-gray-200 ${
+                      status.isExitMonth 
+                        ? 'bg-gray-50 text-gray-400' 
+                        : 'bg-white text-gray-900'
+                    }`}>
                       {athlete.fullName}
                     </td>
                     {data.days.map((dayData) => {
@@ -652,23 +734,34 @@ export default function JournalTable({ groupId }: { groupId: string }) {
                       return (
                         <td
                           key={dayData.day}
-                          className="px-2 py-2 text-center text-sm"
+                          className={`px-2 py-2 text-center text-sm ${status.isExitMonth ? 'bg-gray-50' : ''}`}
                         >
                           {/* Кнопка для экрана */}
                           <button
-                            onClick={() =>
-                              handleMarkChange(dayData.day, athlete.id, getNextMark(currentMark))
-                            }
-                            onDoubleClick={(e) => {
-                              e.preventDefault()
-                              handleDoubleClick(dayData.day, athlete.id)
+                            onClick={() => {
+                              if (!status.isReadonly) {
+                                handleMarkChange(dayData.day, athlete.id, getNextMark(currentMark))
+                              }
                             }}
+                            onDoubleClick={(e) => {
+                              if (!status.isReadonly) {
+                                e.preventDefault()
+                                handleDoubleClick(dayData.day, athlete.id)
+                              }
+                            }}
+                            disabled={status.isReadonly}
                             className={`w-full py-1 px-1 rounded border text-xs font-medium transition-colors no-print relative ${
-                              currentMark
-                                ? getMarkColorClass(currentMark)
-                                : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
+                              status.isReadonly
+                                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                : currentMark
+                                  ? getMarkColorClass(currentMark)
+                                  : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
                             }`}
-                            title="Клик для изменения первой оценки, двойной клик для редактирования обеих оценок"
+                            title={
+                              status.isReadonly
+                                ? 'Редактирование недоступно (ученик выбыл в этом месяце)'
+                                : 'Клик для изменения первой оценки, двойной клик для редактирования обеих оценок'
+                            }
                           >
                             {displayText}
                             {marks.code2 && marks.code2 !== '' && marks.code2 !== null && (
@@ -683,7 +776,8 @@ export default function JournalTable({ groupId }: { groupId: string }) {
                       )
                     })}
                   </tr>
-                ))
+                  )
+                })
               )}
             </tbody>
           </table>

@@ -40,6 +40,7 @@ export async function GET(
     }
 
     // Для ADMIN разрешаем доступ ко всем ученикам, для TRAINER - только к своим
+    // Убираем фильтр по isActive, чтобы можно было просматривать выбывших учеников
     const athlete = await prisma.athlete.findFirst({
       where: user.role === 'ADMIN'
         ? { id: params.id }
@@ -51,10 +52,25 @@ export async function GET(
           },
       include: {
         norms: {
-          where: {
-            normType: 'INDIVIDUAL', // Только индивидуальные нормативы
+          // Загружаем ВСЕ нормативы ученика (индивидуальные, групповые, контрольные)
+          // НЕ фильтруем по normType, groupNormId, period - показываем все нормативы
+          include: {
+            template: {
+              select: {
+                id: true,
+                name: true,
+                unit: true,
+                direction: true,
+              },
+            },
+            groupNorm: {
+              select: {
+                id: true,
+                period: true,
+              },
+            },
           },
-          orderBy: { date: 'desc' },
+          orderBy: { date: 'asc' },
         },
         group: {
           select: {
@@ -126,7 +142,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { fullName, birthDate, gender, notes, groupId, uinGto } = body
+    const { fullName, birthDate, gender, notes, groupId, uinGto, height, weight, shoeSize } = body
 
     if (!fullName || fullName.trim() === '') {
       return NextResponse.json(
@@ -141,6 +157,37 @@ export async function PUT(
         { error: 'УИН ГТО должен быть в формате 00-00-0000000' },
         { status: 400 }
       )
+    }
+
+    // Валидация антропометрических данных
+    if (height !== undefined && height !== null) {
+      const heightNum = typeof height === 'string' ? parseInt(height, 10) : height
+      if (isNaN(heightNum) || heightNum < 50 || heightNum > 250) {
+        return NextResponse.json(
+          { error: 'Рост должен быть от 50 до 250 см' },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (weight !== undefined && weight !== null) {
+      const weightNum = typeof weight === 'string' ? parseInt(weight, 10) : weight
+      if (isNaN(weightNum) || weightNum < 10 || weightNum > 200) {
+        return NextResponse.json(
+          { error: 'Вес должен быть от 10 до 200 кг' },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (shoeSize !== undefined && shoeSize !== null) {
+      const shoeSizeNum = typeof shoeSize === 'string' ? parseFloat(shoeSize) : shoeSize
+      if (isNaN(shoeSizeNum) || shoeSizeNum < 15 || shoeSizeNum > 50) {
+        return NextResponse.json(
+          { error: 'Размер обуви должен быть от 15 до 50' },
+          { status: 400 }
+        )
+      }
     }
 
     // Если указана новая группа, проверяем, что она принадлежит тренеру (или ADMIN имеет доступ)
@@ -169,6 +216,9 @@ export async function PUT(
         gender: gender || null,
         notes: notes || null,
         uinGto: uinGto && uinGto.trim() !== '' ? uinGto.trim() : null,
+        height: height !== undefined && height !== null ? (typeof height === 'string' ? parseInt(height, 10) : height) : null,
+        weight: weight !== undefined && weight !== null ? (typeof weight === 'string' ? parseInt(weight, 10) : weight) : null,
+        shoeSize: shoeSize !== undefined && shoeSize !== null ? (typeof shoeSize === 'string' ? parseFloat(shoeSize) : shoeSize) : null,
         groupId: groupId,
         schoolYear: newGroup.schoolYear,
       }
@@ -198,6 +248,9 @@ export async function PUT(
         gender: gender || null,
         notes: notes || null,
         uinGto: uinGto && uinGto.trim() !== '' ? uinGto.trim() : null,
+        height: height !== undefined && height !== null ? (typeof height === 'string' ? parseInt(height, 10) : height) : null,
+        weight: weight !== undefined && weight !== null ? (typeof weight === 'string' ? parseInt(weight, 10) : weight) : null,
+        shoeSize: shoeSize !== undefined && shoeSize !== null ? (typeof shoeSize === 'string' ? parseFloat(shoeSize) : shoeSize) : null,
       },
       include: {
         group: {

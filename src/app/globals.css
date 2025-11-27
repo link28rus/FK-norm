@@ -241,18 +241,32 @@ label {
   display: none;
 }
 
+/* Правило @page по умолчанию - портретная ориентация (для карточки ученика) */
+@page {
+  size: A4 portrait;
+  margin: 15mm;
+}
+
 /* Стили для печати журнала в альбомной ориентации */
 @media print {
-  @page {
-    size: A4 landscape; /* альбомная ориентация */
-    margin: 5mm; /* Минимальные поля */
+  /* Переопределяем @page для страниц журнала на альбомную */
+  @page :first {
+    size: A4 landscape;
+    margin: 5mm;
   }
 
-  /* Масштабирование для влезания таблицы */
-  body {
+  /* Масштабирование для влезания таблицы (только для журнала) */
+  body:not(.athlete-card-print) {
     margin: 0 !important;
     padding: 0 !important;
     zoom: 0.85; /* 85% масштаб для влезания всех колонок */
+  }
+
+  /* Для карточки ученика используем нормальный масштаб */
+  body.athlete-card-print {
+    zoom: 1 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   /* Скрыть элементы управления, которые не нужны в печати */
@@ -411,5 +425,47 @@ label {
   [class*="z-"] {
     z-index: auto !important;
   }
+
+  /* Стили для печати карточки ученика в портретной ориентации */
+  body.athlete-card-print,
+  html:has(.athlete-card-print) {
+    zoom: 1 !important;
+  }
+
+  .athlete-card-print .avoid-page-break {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .athlete-card-print table {
+    font-size: 12px !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: auto !important;
+  }
+
+  .athlete-card-print th,
+  .athlete-card-print td {
+    min-width: auto !important;
+    max-width: none !important;
+    width: auto !important;
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+    text-align: left !important;
+  }
+
+  .athlete-card-print th {
+    background-color: #f9fafb !important;
+    font-weight: 600 !important;
+  }
+
+  /* Переопределение @page для карточки ученика - портретная ориентация */
+  /* Примечание: @page не может быть внутри @media, поэтому это правило применяется глобально */
+}
+
+/* Правило @page для карточки ученика - портретная ориентация */
+@page {
+  size: A4;
+  margin: 15mm;
 }
 

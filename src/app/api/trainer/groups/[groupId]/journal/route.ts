@@ -153,6 +153,8 @@ export async function GET(
         gender: string | null
         notes: string | null
         schoolYear: string
+        isActive: boolean
+        exitDate: Date | null
         createdAt: Date
       }> = []
       
@@ -171,10 +173,22 @@ export async function GET(
       }> = []
       
       try {
+        // Загружаем всех учеников (активных и выбывших) для корректного отображения в месяце выбытия
         athletes = await prisma.athlete.findMany({
           where: { 
             groupId: groupId,
-            isActive: true, // Только активные ученики
+          },
+          select: {
+            id: true,
+            groupId: true,
+            fullName: true,
+            birthDate: true,
+            gender: true,
+            notes: true,
+            schoolYear: true,
+            isActive: true,
+            exitDate: true,
+            createdAt: true,
           },
           orderBy: { fullName: 'asc' },
         })

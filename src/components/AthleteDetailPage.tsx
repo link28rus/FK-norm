@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import EditAthleteModal from './EditAthleteModal'
 import { Input, NumberInput, Select, Textarea, Button, Alert, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableEmptyState, GradeBadge, InfoCard, useToast } from '@/components/ui'
 
@@ -14,6 +15,12 @@ interface Athlete {
   uinGto?: string | null
   groupId: string
   schoolYear?: string
+  height?: number | null
+  weight?: number | null
+  shoeSize?: number | null
+  isActive?: boolean
+  exitDate?: string | null
+  exitReason?: string | null
   group?: {
     name: string
     schoolYear?: string
@@ -30,6 +37,45 @@ interface Norm {
   date: string
   comment?: string
   normType?: string
+  groupNormId?: string | null
+  template?: {
+    id: string
+    name: string
+    unit: string
+    direction: string
+  } | null
+  groupNorm?: {
+    id: string
+    period: 'START_OF_YEAR' | 'END_OF_YEAR' | 'REGULAR' | null
+  } | null
+}
+
+type NormDisplayType = 'INDIVIDUAL' | 'GROUP' | 'CONTROL_START' | 'CONTROL_END'
+
+function getNormType(norm: Norm): NormDisplayType {
+  // Если есть groupNorm и period, определяем тип контрольного замера
+  if (norm.groupNorm?.period === 'START_OF_YEAR') return 'CONTROL_START'
+  if (norm.groupNorm?.period === 'END_OF_YEAR') return 'CONTROL_END'
+  // Если есть groupNormId, но period REGULAR или null - это групповой норматив
+  if (norm.groupNormId) return 'GROUP'
+  // Иначе - индивидуальный
+  return 'INDIVIDUAL'
+}
+
+function getNormTypeLabel(norm: Norm): string {
+  const type = getNormType(norm)
+  switch (type) {
+    case 'INDIVIDUAL':
+      return 'Индивид.'
+    case 'GROUP':
+      return 'Общий'
+    case 'CONTROL_START':
+      return 'Контр. (начало)'
+    case 'CONTROL_END':
+      return 'Контр. (конец)'
+    default:
+      return '—'
+  }
 }
 
 export default function AthleteDetailPage({
@@ -79,6 +125,13 @@ export default function AthleteDetailPage({
   const handleAddNorm = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!athlete) return
+    
+    // Не позволяем добавлять нормативы для выбывших учеников
+    if (athlete.isActive === false) {
+      setError('Нельзя добавлять нормативы для выбывшего ученика')
+      return
+    }
+    
     setError('')
     setFieldErrors({})
 
@@ -201,20 +254,35 @@ export default function AthleteDetailPage({
       <div className="mb-4">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
-            <h1 className="h1">{athlete.fullName}</h1>
+            <h1 className="h1">
+              {athlete.fullName}
+              {athlete.isActive === false && (
+                <span className="ml-2 text-base font-normal text-gray-500">(выбыл)</span>
+              )}
+            </h1>
             {athlete.group && (
               <p className="mt-1 text-sm text-secondary">
                 {athlete.group.name} · учебный год {athlete.group.schoolYear || athlete.schoolYear}
               </p>
             )}
           </div>
-          <Button
-            onClick={() => router.push(`/trainer/athletes/${athleteId}/progress`)}
-            variant="primary"
-            size="sm"
-          >
-            Прогресс по нормативам
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              onClick={() => router.push(`/trainer/athletes/${athleteId}/progress`)}
+              variant="primary"
+              size="sm"
+            >
+              Прогресс по нормативам
+            </Button>
+            <Link
+              href={`/trainer/athletes/${athleteId}/print`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="no-print rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            >
+              Печать карточки
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -222,13 +290,15 @@ export default function AthleteDetailPage({
       <InfoCard
         title="Данные ученика"
         actions={
-          <Button
-            onClick={() => setShowEditModal(true)}
-            variant="secondary"
-            size="sm"
-          >
-            Редактировать
-          </Button>
+          athlete.isActive !== false && (
+            <Button
+              onClick={() => setShowEditModal(true)}
+              variant="secondary"
+              size="sm"
+            >
+              Редактировать
+            </Button>
+          )
         }
       >
           <dl className="space-y-2">
@@ -264,6 +334,32 @@ export default function AthleteDetailPage({
                 <dd className="text-sm text-heading">{athlete.uinGto}</dd>
               </div>
             )}
+            {(athlete.height !== null && athlete.height !== undefined) || 
+             (athlete.weight !== null && athlete.weight !== undefined) || 
+             (athlete.shoeSize !== null && athlete.shoeSize !== undefined) ? (
+              <div className="pt-2 border-t border-gray-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-8">
+                  {athlete.height !== null && athlete.height !== undefined && (
+                    <div>
+                      <span className="text-sm font-medium text-secondary">Рост:</span>{' '}
+                      <span className="text-sm text-heading">{athlete.height} см</span>
+                    </div>
+                  )}
+                  {athlete.weight !== null && athlete.weight !== undefined && (
+                    <div>
+                      <span className="text-sm font-medium text-secondary">Вес:</span>{' '}
+                      <span className="text-sm text-heading">{athlete.weight} кг</span>
+                    </div>
+                  )}
+                  {athlete.shoeSize !== null && athlete.shoeSize !== undefined && (
+                    <div>
+                      <span className="text-sm font-medium text-secondary">Размер обуви:</span>{' '}
+                      <span className="text-sm text-heading">{athlete.shoeSize}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
             {athlete.notes && (
               <div className="flex flex-col sm:flex-row sm:items-start pt-2 border-t border-gray-200">
                 <dt className="text-sm font-medium text-secondary w-full sm:w-32 flex-shrink-0 mb-1 sm:mb-0">Примечания</dt>
@@ -383,42 +479,42 @@ export default function AthleteDetailPage({
           </InfoCard>
         )}
 
-      {/* Индивидуальные нормативы */}
+      {/* Все нормативы */}
       <InfoCard
-          title="Индивидуальные нормативы"
+          title="Нормативы"
           actions={
-            !showAddNorm && (
+            !showAddNorm && athlete.isActive !== false && (
               <Button
                 onClick={() => setShowAddNorm(true)}
                 variant="primary"
                 size="sm"
               >
-                Добавить норматив
+                Добавить индивидуальный норматив
               </Button>
             )
           }
         >
           {(() => {
-            // API уже фильтрует только индивидуальные нормативы, но для безопасности оставляем фильтр
-            const individualNorms = athlete.norms.filter(
-              (norm) => norm.normType === 'INDIVIDUAL' || !norm.normType // Для обратной совместимости
-            )
+            // Используем все нормативы (индивидуальные, групповые, контрольные)
+            const allNorms = athlete.norms
 
-            if (individualNorms.length === 0) {
+            if (allNorms.length === 0) {
               return (
                 <div className="text-center py-8">
                   <h3 className="h3 mb-2 text-heading">
-                    Индивидуальные нормативы ещё не добавлены
+                    Нормативы ещё не добавлены
                   </h3>
                   <p className="text-secondary mb-6">
                     Добавьте индивидуальный норматив для этого ученика.
                   </p>
-                  <Button
-                    onClick={() => setShowAddNorm(true)}
-                    variant="primary"
-                  >
-                    Добавить норматив
-                  </Button>
+                  {athlete.isActive !== false && (
+                    <Button
+                      onClick={() => setShowAddNorm(true)}
+                      variant="primary"
+                    >
+                      Добавить индивидуальный норматив
+                    </Button>
+                  )}
                 </div>
               )
             }
@@ -427,48 +523,67 @@ export default function AthleteDetailPage({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Тип норматива</TableHead>
-                    <TableHead>Результат ученика</TableHead>
+                    <TableHead>Тип</TableHead>
+                    <TableHead>Норматив</TableHead>
+                    <TableHead>Дата</TableHead>
+                    <TableHead>Результат</TableHead>
+                    <TableHead>Ед. изм.</TableHead>
                     <TableHead>Оценка</TableHead>
-                    <TableHead className="hidden md:table-cell">Дата выполнения</TableHead>
                     <TableHead className="hidden lg:table-cell">Комментарий</TableHead>
                     <TableHead align="right">Действия</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {individualNorms.map((norm) => (
+                  {allNorms.map((norm) => {
+                    // Используем название из template, если оно есть, иначе type
+                    const normName = norm.template?.name || norm.type
+                    // Используем unit из template, если он есть, иначе unit из norm
+                    const normUnit = norm.template?.unit || norm.unit
+                    const typeLabel = getNormTypeLabel(norm)
+                    
+                    return (
                     <TableRow key={norm.id}>
+                      <TableCell className="font-medium text-sm">
+                        {typeLabel}
+                      </TableCell>
                       <TableCell className="font-medium">
-                        {norm.type}
+                        {normName}
+                      </TableCell>
+                      <TableCell className="text-secondary">
+                        {new Date(norm.date).toLocaleDateString('ru-RU')}
                       </TableCell>
                       <TableCell className="text-secondary">
                         {norm.value !== null && norm.value !== undefined
-                          ? `${norm.value}${norm.unit ? ` ${norm.unit}` : ''}`
+                          ? norm.value
                           : '—'}
+                      </TableCell>
+                      <TableCell className="text-secondary">
+                        {normUnit || '—'}
                       </TableCell>
                       <TableCell>
                         <GradeBadge grade={norm.status} />
-                      </TableCell>
-                      <TableCell className="text-secondary hidden md:table-cell">
-                        {new Date(norm.date).toLocaleDateString('ru-RU')}
                       </TableCell>
                       <TableCell className="text-secondary hidden lg:table-cell">
                         {norm.comment || '—'}
                       </TableCell>
                       <TableCell align="right">
                         <div className="flex justify-end gap-2 flex-wrap">
-                          <Button
-                            onClick={() => handleDeleteNorm(norm.id)}
-                            variant="danger"
-                            size="sm"
-                            className="w-full sm:w-auto"
-                          >
-                            Удалить
-                          </Button>
+                          {/* Удаление доступно только для индивидуальных нормативов */}
+                          {getNormType(norm) === 'INDIVIDUAL' && (
+                            <Button
+                              onClick={() => handleDeleteNorm(norm.id)}
+                              variant="danger"
+                              size="sm"
+                              className="w-full sm:w-auto"
+                            >
+                              Удалить
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    )
+                  })}
                 </TableBody>
               </Table>
             )
@@ -483,6 +598,9 @@ export default function AthleteDetailPage({
           athleteGender={athlete.gender}
           athleteNotes={athlete.notes}
           athleteUinGto={athlete.uinGto}
+          athleteHeight={athlete.height}
+          athleteWeight={athlete.weight}
+          athleteShoeSize={athlete.shoeSize}
           athleteGroupId={athlete.groupId}
           athleteSchoolYear={athlete.group?.schoolYear || athlete.schoolYear || '2024/2025'}
           isOpen={showEditModal}

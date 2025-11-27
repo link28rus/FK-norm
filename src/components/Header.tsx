@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface HeaderProps {
   title?: string
@@ -15,6 +15,7 @@ export default function Header({ title, userFullName, showTrainerCabinetLink = f
   const router = useRouter()
   const pathname = usePathname()
   const [loading, setLoading] = useState(false)
+  const [currentDate, setCurrentDate] = useState('')
 
   // Автоматически определяем, нужно ли показывать ссылку на кабинет тренера
   const shouldShowTrainerLink = showTrainerCabinetLink || (pathname?.startsWith('/trainer') && pathname !== '/trainer')
@@ -24,6 +25,15 @@ export default function Header({ title, userFullName, showTrainerCabinetLink = f
 
   // Не показываем заголовок на всех страницах (заголовки отображаются локально на каждой странице)
   const shouldShowTitle = false
+
+  // Устанавливаем текущую дату при монтировании компонента
+  useEffect(() => {
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const year = now.getFullYear()
+    setCurrentDate(`${day}.${month}.${year}`)
+  }, [])
 
   const handleLogout = async () => {
     setLoading(true)
@@ -57,9 +67,19 @@ export default function Header({ title, userFullName, showTrainerCabinetLink = f
     <header className="bg-white shadow-sm border-b border-gray-200 no-print">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex items-center">
+            {currentDate && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">
+                  Дата:
+                </span>
+                <div className="text-sm font-bold text-gray-800 border border-gray-300 px-3 py-1 rounded-md bg-gray-50 shadow-sm">
+                  {currentDate}
+                </div>
+              </div>
+            )}
             {shouldShowTitle && (
-              <h1 className="h1 truncate">{title}</h1>
+              <h1 className="h1 truncate ml-4">{title}</h1>
             )}
           </div>
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">

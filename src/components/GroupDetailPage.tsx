@@ -626,6 +626,7 @@ export default function GroupDetailPage({
                     <TableHead>ФИО</TableHead>
                     <TableHead>Дата выбытия</TableHead>
                     <TableHead>Причина</TableHead>
+                    <TableHead align="right">Действия</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -639,6 +640,15 @@ export default function GroupDetailPage({
                       </TableCell>
                       <TableCell className="text-secondary">
                         {athlete.exitReason || '—'}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Button
+                          onClick={() => router.push(`/trainer/athletes/${athlete.id}`)}
+                          variant="secondary"
+                          size="sm"
+                        >
+                          Открыть
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

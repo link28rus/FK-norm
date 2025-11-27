@@ -8,12 +8,12 @@ import { getCurrentUser } from '@/lib/auth'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ groupId: string; athleteId: string }> | { groupId: string; athleteId: string } }
+  { params }: { params: Promise<{ groupId: string; id: string }> | { groupId: string; id: string } }
 ) {
   try {
     // Обрабатываем params как Promise или обычный объект (для совместимости с Next.js 14/15)
     const resolvedParams = await Promise.resolve(params)
-    const { groupId, athleteId } = resolvedParams
+    const { groupId, id: athleteId } = resolvedParams
 
     const user = await getCurrentUser(req)
 
